@@ -266,9 +266,11 @@ def main(args):
         #)
         valueset = data.add(
             common.ValueSet,
-            ld['value'], # id=id_,
+            ld['value'],
+            id=id_,
             language=language,
             parameter=parameter,
+            source=ld["source"],
             contribution=parameter.designer
         )
         data.add(
@@ -276,10 +278,6 @@ def main(args):
             id=id_,
             domainelement=data['DomainElement'][(ld['feature_alphanumid'], ld['value'])],
             jsondata={"icon": data['DomainElement'][(ld['feature_alphanumid'], ld['value'])].jsondata},
-            language=language,
-            parameter=parameter,
-            source=ld["source"],
-            contributor=ld["contributor"],
             comment=ld["comment"],
             valueset=valueset,
         )

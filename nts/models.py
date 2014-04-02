@@ -35,6 +35,7 @@ from nts import interfaces as nts_interfaces
 class Family(Base, IdNameDescriptionMixin, Versioned):
     pass
 
+
 @implementer(interfaces.ILanguage)
 class ntsLanguage(Language, CustomModelMixin):
     pk = Column(Integer, ForeignKey('language.pk'), primary_key=True)
@@ -43,17 +44,13 @@ class ntsLanguage(Language, CustomModelMixin):
     representation = Column(Integer)
     macroarea = Column(Unicode)
 
+
 @implementer(interfaces.IValue)
 class ntsValue(Value, CustomModelMixin):
     pk = Column(Integer, ForeignKey('value.pk'), primary_key=True)
-    source = Column(Unicode)
-    language_pk = Column(Integer, ForeignKey('language.pk'))
-    parameter_pk = Column(Integer, ForeignKey('parameter.pk'))
-    parameter = relationship('Parameter')
-    language = relationship('ntsLanguage')
-    contributor = Column(Unicode)
     comment = Column(Unicode)
     example = Column(Unicode)
+
 
 class FeatureDomain(Base, CustomModelMixin, Versioned):
     pk = Column(String, primary_key=True)

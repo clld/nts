@@ -128,7 +128,7 @@ class Datapoints(Values):
                     self, 'Name',
                     model_col=common.Language.name,
                     get_object=lambda i: i.valueset.language),
-                LanguageIdCol(
+                Col(
                     self, 'ISO-639-3',
                     model_col=common.Language.id,
                     get_object=lambda i: i.valueset.language)]

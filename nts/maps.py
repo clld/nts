@@ -18,7 +18,6 @@ def map_params(req):
 class FeatureMap(ParameterMap):
     def get_options(self):
         res = {
-            'center': {"lon": 289.564764, "lat": 1.745725},
             'icon_size': 20,
             'max_zoom': 9,
             'worldCopyJump': True,
@@ -55,7 +54,7 @@ class CombinedMap(CombinationMap):
     __geojson__ = GeoJsonCDE
 
     def get_options(self):
-        res = {'icon_size': 20, 'hash': True, 'center': {"lon": 289.564764, "lat": 1.745725}}
+        res = {'icon_size': 20, 'hash': True}
         res.update(map_params(self.req))
         return res
 

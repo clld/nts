@@ -63,7 +63,7 @@ ${select.render()}
 ${request.map.render()}
 % endif
 
-${request.get_datatable('values', h.models.Value, feature=ctx).render()}
+${request.get_datatable('values', h.models.Value, parameter=ctx).render()}
 
 
 

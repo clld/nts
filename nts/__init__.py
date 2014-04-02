@@ -70,6 +70,7 @@ def main(global_config, **settings):
         ('designers', partial(menu_item, 'contributions', label="Authors")),
     )
 
+    config.include('clldmpg')
     config.include('nts.adapters')
     config.include('nts.datatables')
     config.include('nts.maps')
