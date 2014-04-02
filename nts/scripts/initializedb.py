@@ -1,3 +1,4 @@
+# coding: utf8
 from __future__ import unicode_literals
 import sys
 
@@ -10,6 +11,7 @@ from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import get_distinct_values
 from clld.lib.bibtex import unescape
+from clld.util import slug
 
 import nts
 from nts import models
@@ -144,7 +146,7 @@ def main(args):
     families = grp2([(lg_to_fam[lg], lg) for lg in lgs.keys()])
     ficons = dict(icons.iconizeall([f for (f, ntslgs) in families.iteritems() if len(ntslgs) != 1]).items() + [(f, icons.graytriangle) for (f, ntslgs) in families.iteritems() if len(ntslgs) == 1])
     for family in families.iterkeys():
-        fam = data.add(models.Family, family, id=family, name=family, jsondata={"icon": ficons[family]})
+        data.add(models.Family, family, id=slug(family), name=family, jsondata={"icon": ficons[family]})
     DBSession.flush()
 
     for lgid in lgs.iterkeys():
@@ -257,13 +259,6 @@ def main(args):
             print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], "not in the set of legal values"
             continue
 
-        #valueset = data.add(
-        #    common.ValueSet, lgid,
-        #    id=id_,
-        #    language=language,
-        #    parameter=parameter,
-        #    #contribution=parameter.chapter,
-        #)
         valueset = data.add(
             common.ValueSet,
             ld['value'],
@@ -313,7 +308,7 @@ def main(args):
     DBSession.add(dataset)
     DBSession.flush()
 
-    editor = data.add(common.Contributor, "Harald Hammarstrom", id="Harald Hammarstrom", name="Harald Hammarstrom", email = "harald.hammarstroem@mpi.nl")
+    editor = data.add(common.Contributor, "Harald Hammarstrom", id="Harald Hammarstrom", name="Harald Hammarström", email = "harald.hammarstroem@mpi.nl")
     common.Editor(dataset=dataset, contributor=editor, ord=0)
     editor = data.add(common.Contributor, "Suzanne van der Meer", id="Suzanne van der Meer", name="Suzanne van der Meer", email = "suzanne.vandermeer@mpi.nl")
     common.Editor(dataset=dataset, contributor=editor, ord=1)

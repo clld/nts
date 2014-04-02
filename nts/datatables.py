@@ -31,6 +31,7 @@ class _FeatureDomainCol(Col):
     def search(self, qs):
         return FeatureDomain.name.__eq__(qs)
 
+
 class FeatureDomainCol(_FeatureDomainCol):
     def format(self, item):
         return item.featuredomain.name
@@ -90,6 +91,7 @@ class Designers(datatables.Contributions):
             Col(self, 'More Information', model_col=Designer.pdflink),
         ]
 
+
 class Datapoints(Values):
     def base_query(self, query):
         query = Values.base_query(self, query)
@@ -109,7 +111,7 @@ class Datapoints(Values):
     def col_defs(self):
         name_col = ValueNameCol(self, 'value')
         if self.parameter and self.parameter.domain:
-            name_col.choices = [de.name for de in self.parameter.domain]
+            name_col.choices = [(de.name, de.description) for de in self.parameter.domain]
 
         cols = []
         if self.parameter:
@@ -149,8 +151,6 @@ class Datapoints(Values):
             # features is an upper bound for the number of values; thus, we do not
             # paginate.
             return {'bLengthChange': False, 'bPaginate': False}
-
-
 
 
 def includeme(config):

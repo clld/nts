@@ -51,6 +51,9 @@ class ntsValue(Value, CustomModelMixin):
     comment = Column(Unicode)
     example = Column(Unicode)
 
+    def __unicode__(self):
+        return self.domainelement.description if self.domainelement else self.name or self.id
+
 
 class FeatureDomain(Base, CustomModelMixin, Versioned):
     pk = Column(String, primary_key=True)

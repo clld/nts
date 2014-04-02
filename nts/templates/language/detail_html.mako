@@ -8,5 +8,16 @@
 ${request.get_datatable('values', h.models.Value, language=ctx).render()}
 
 <%def name="sidebar()">
-${util.language_meta()}
+    ${util.codes()}
+<div style="clear: right;"> </div>
+<%util:well>
+${request.map.render()}
+${h.format_coordinates(ctx)}
+</%util:well>
+    % if ctx.sources:
+<%util:well title="Sources">
+${util.sources_list(sorted(list(ctx.sources), key=lambda s: s.name))}
+<div style="clear: both;"></div>
+</%util:well>
+    % endif
 </%def>

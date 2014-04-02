@@ -2,21 +2,21 @@
 <%namespace name="util" file="../util.mako"/>
 
 <%def name="sidebar()">
-<div id="wals_search">
-<script>
-(function() {
-var cx = '012093784907070887713:a7i_0y3rwgs';
-var gcse = document.createElement('script');
-gcse.type = 'text/javascript';
-gcse.async = true;
-gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
-'//www.google.com/cse/cse.js?cx=' + cx;
-var s = document.getElementsByTagName('script')[0];
-s.parentNode.insertBefore(gcse, s);
-})();
-</script>
-<gcse:search></gcse:search>
-</div>
+##<div id="wals_search">
+##<script>
+##(function() {
+##var cx = '012093784907070887713:a7i_0y3rwgs';
+##var gcse = document.createElement('script');
+##gcse.type = 'text/javascript';
+##gcse.async = true;
+##gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
+##'//www.google.com/cse/cse.js?cx=' + cx;
+##var s = document.getElementsByTagName('script')[0];
+##s.parentNode.insertBefore(gcse, s);
+##})();
+##</script>
+##<gcse:search></gcse:search>
+##</div>
 </%def>
 
 <h2>Welcome to NTS Online</h2>
@@ -29,20 +29,20 @@ Suzanne van der Meer and Harald Hammarstr&ouml;m.
 </p>
 
 <p>
-<table class="table table-condensed">
- <thead>
-<tr>
-<th>Statistics</th>
-<th></th>
-</tr>
-</thead>
-<tr><td>Languages</td><td>${stats['language']}</td></tr>
-<tr><td>Features</td><td>${stats['parameter']}</td></tr>
-<tr><td>Datapoints</td><td>${stats['value']}</td></tr>
+<table class="table table-condensed table-nonfluid">
+    <thead>
+    <tr>
+        <th>Statistics</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr><td>Languages</td><td>${stats['language']}</td></tr>
+    <tr><td>Features</td><td>${stats['parameter']}</td></tr>
+    <tr><td>Datapoints</td><td>${stats['value']}</td></tr>
+    </tbody>
 </table>
 </p>
-
-
 
 <p>
 NTS Online is a publication of the

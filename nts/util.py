@@ -50,15 +50,22 @@ def icons(req, param):
 #    return {'referents': get_referents(context)}
 
 
-#def _valuesets(parameter):
-#    return DBSession.query(ValueSet)\
-#        .filter(ValueSet.parameter_pk == parameter.pk)\
-#        .options(
-#            joinedload(ValueSet.language),
-#            joinedload_all(ValueSet.values, Value.domainelement))
+def _valuesets(parameter):
+    return DBSession.query(ValueSet)\
+        .filter(ValueSet.parameter_pk == parameter.pk)\
+        .options(
+            joinedload(ValueSet.language),
+            joinedload_all(ValueSet.values, Value.domainelement))
+
 
 def parameter_detail_html(context=None, request=None, **kw):
     return dict(select=CombinationMultiSelect(request, selected=[context]))
+
+
+def parameter_detail_tab(context=None, request=None, **kw):
+    query = _valuesets(context).options(
+        joinedload_all(ValueSet.language, ntsLanguage.family))
+    return dict(datapoints=query)
 
 
 def combination_detail_html(context=None, request=None, **kw):

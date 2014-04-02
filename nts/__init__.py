@@ -66,5 +66,3 @@ def main(global_config, **settings):
         name='tab-separated values'), IParameter)
 
     return config.make_wsgi_app()
-
-
