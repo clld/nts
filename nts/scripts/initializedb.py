@@ -5,9 +5,10 @@ from pytz import utc
 from datetime import date, datetime
 #import MySQLdb
 
-from clld.scripts.util import initializedb, Data
+from clld.scripts.util import initializedb, Data, gbs_func, bibtex2source, glottocodes_by_isocode
 from clld.db.meta import DBSession
 from clld.db.models import common
+from clld.db.util import get_distinct_values
 
 import nts
 from nts import models
@@ -92,8 +93,7 @@ def main(args):
     #fromdb=MySQLdb.connect(user="root", passwd="blodig1kuk", db="linc")
     icons = issues.Icons()
 
-
-
+    glottocodes = glottocodes_by_isocode(args.glottolog_dburi)
 
     #Languages
     dp = dtab("dp.tab")
@@ -119,27 +119,47 @@ def main(args):
     lg_to_fam['qtf'] = "TODO"
     lg_to_fam['qss'] = "TODO"
     lg_to_fam['azr'] = "TODO"
+    lg_to_fam['NOCODE_Sisiqa'] = "Austronesian"
+
     lats['qgr'] = 0.0
     lats['qtf'] = 0.0
     lats['qss'] = 0.0
     lats['azr'] = 0.0
+    lats['NOCODE_Sisiqa'] = 0.0
+    lons['NOCODE_Sisiqa'] = 0.0
     lons['qgr'] = 0.0
     lons['qtf'] = 0.0
     lons['qss'] = 0.0
     lons['azr'] = 0.0
 
+    mas = dtab("macroareas.tab")
+    lg_to_ma = dict([(d['language_id'], d['macro_area']) for d in mas])
+    lg_to_ma['qgr'] = "TODO"
+    lg_to_ma['qtf'] = "TODO"
+    lg_to_ma['qss'] = "TODO"
+    lg_to_ma['azr'] = "TODO"
+ 
 
     families = grp2([(lg_to_fam[lg], lg) for lg in lgs.keys()])
     ficons = dict(icons.iconizeall([f for (f, ntslgs) in families.iteritems() if len(ntslgs) != 1]).items() + [(f, icons.graytriangle) for (f, ntslgs) in families.iteritems() if len(ntslgs) == 1])
     for family in families.iterkeys():
-        fam = data.add(models.Family, family, pk = family, name = family, jsondata={"icon": ficons[family]})
-
+        fam = data.add(models.Family, family, id=family, name=family, jsondata={"icon": ficons[family]})
     DBSession.flush()
 
 
     for lgid in lgs.iterkeys():
-        lang = data.add(models.ntsLanguage, lgid, id = lgid, name = lgs[lgid], family=data["Family"][lg_to_fam[lgid]], representation = nfeatures[lgid], latitude = float(lats[lgid]), longitude = float(lons[lgid]))
-
+        lang = data.add(models.ntsLanguage, lgid, id = lgid, name = lgs[lgid], family=data["Family"][lg_to_fam[lgid]], representation = nfeatures[lgid], latitude = float(lats[lgid]), longitude = float(lons[lgid]), macroarea = lg_to_ma[lgid])
+        if not lgid.startswith('NOCODE'):
+            iso = data.add(
+                common.Identifier, lgid,
+                id=lgid, name=lgid, type=common.IdentifierType.iso.value, description=lgs[lgid])
+            data.add(common.LanguageIdentifier, lgid, language=lang, identifier=iso)
+        if lgid in glottocodes:
+            gc = glottocodes[lgid]
+            gc = data.add(
+                common.Identifier, 'gc' + lgid,
+                id=gc, name=gc, type=common.IdentifierType.glottolog.value, description=lgs[lgid])
+            data.add(common.LanguageIdentifier, lgid, language=lang, identifier=gc)
     DBSession.flush()
 
     #Domains
@@ -447,112 +467,5 @@ if __name__ == '__main__':
 
 
 
-#    old_db = DB
-
-#    with transaction.manager:
-#        for row in old_db.execute("select * from families"):
-#            print "FAM", row
-#            data.add(models.Family, row['famid'], id=row['famid'], name=row['canonical_name'], description=row['subsistence'])
-#        DBSession.flush()
-#
-#        for row in old_db.execute("select * from languages"):
-#            print "LGS", row
-#            data.add(common.Identifier, row['lgid'],
-#                     id=row['lgid'], name=row['canonical_name'], type='iso639-3', description="HELLO")
-#        DBSession.flush()
-#
-#        for row in old_db.execute("select * from languages"):
-#            print "HHLGS", row
-#            #kw = dict((key, row[key]) for key in ['lgid', 'canonical_name', 'canonical_name', 'canonical_name'])
-#            kw = {'id': row['lgid'], 'name': row['canonical_name']}
-#            lang = data.add(models.HHLanguage, row['lgid'], **kw)
-#            #lang = data.add(models.WalsLanguage, row['lgid'],
-#            #                samples_100=True, samples_200=True, **kw)
-#            #lang.genus = data['Genus'][row['genus_id']]
-#
-#        #for row in old_db.execute("select * from author"):
-#        #    data.add(common.Contributor, row['id'], name=row['name'], url=row['www'], id=row['id'], description=row['note'])
-#        DBSession.flush()
-#
-#        #for row in old_db.execute("select * from country_language"):
-#        #    DBSession.add(models.CountryLanguage(
-#        #        language=data['WalsLanguage'][row['language_id']],
-#        #        country=data['Country'][row['country_id']]))
-#
-#        #for row in old_db.execute("select * from altname_language"):
-#        #    DBSession.add(common.LanguageIdentifier(
-#        #        language=data['WalsLanguage'][row['language_id']],
-#        #        identifier=data['Identifier'][(row['altname_name'], row['altname_type'])],
-#        #        description=row['relation']))
-#        #DBSession.flush()
-
-#        #for row in old_db.execute("select * from isolanguage_language"):
-#        #    DBSession.add(common.LanguageIdentifier(
-#        #        language=data['WalsLanguage'][row['language_id']],
-#        #        identifier=data['Identifier'][row['isolanguage_id']],
-#        #        description=row['relation']))
-#        #DBSession.flush()
-#
-#        #for row in old_db.execute("select * from area"):
-#        #    data.add(models.Area, row['id'], name=row['name'], dbpedia_url=row['dbpedia_url'], id=str(row['id']))
-#        #DBSession.flush()
-
-#        #for row in old_db.execute("select * from chapter"):
-#        #    c = data.add(models.Chapter, row['id'], id=row['id'], name=row['name'])
-#        #    c.area = data['Area'][row['area_id']]
-#        #DBSession.flush()
-#
-#        for row in old_db.execute("select * from features"):
-#            print "FEAT", row
-#            param = data.add(models.Feature, row['fid'], id=row['fid'], name=row['fid'], ordinal_qualifier=row['fid'][0])
-#            #param.chapter = data['Chapter'][row['chapter_id']]
-#        DBSession.flush()
-
-#        #for row in old_db.execute("select * from features"):
-#        #    data.add(
-#        #        common.DomainElement, (row['fid'], row['fid']),
-#        #        id='%s-%s' % (row['fid'], row['fid']),
-#        #        name=row["fdoc"],
-#        #        description="HELLO",
-#        #        jsondata={},
-#        #        number=row['fid'],
-#        #        parameter="HEJ")
-#        #DBSession.flush()
-
-#        for row in old_db.execute("select * from has"):
-#            print "HAS", row
-#            parameter = data['Feature'][row['fid']]
-#            language = data['HHLanguage'][row['lgid']]
-#            id_ = '%s-%s' % (parameter.id, language.id)
-#
-#            valueset = data.add(
-#                common.ValueSet, row['lgid'],
-#                id=id_,
-#                language=language,
-#                parameter=parameter,
-#                contribution=parameter.chapter,
-#            )
-#            #data.add(
-#            #    common.Value, row['lgid'],
-#            #    id=id_,
-#            #    domainelement=data['DomainElement'][(row['fid'], row['val'])],
-#            #    valueset=valueset,
-#            #)
-#            #domainelement=data['DomainElement'][(row['fid'], row['val'])],
-#        DBSession.flush()
-#
-#        #for row in old_db.execute("select * from datapoint_reference"):
-#        #    common.ValueSetReference(
-#        #        valueset=data['ValueSet'][row['datapoint_id']],
-#        #        source=data['Source'][row['reference_id']],
-#        #        description=row['note'],
-#        #    )
-#
-#        #for row in old_db.execute("select * from author_chapter"):
-#        #    DBSession.add(common.ContributionContributor(
-#        #        ord=row['order'],
-#        #        primary=row['primary'] != 0,
-#        #        contributor_pk=data['Contributor'][row['author_id']].pk,
-#        #        contribution_pk=data['Chapter'][row['chapter_id']].pk))
 
 

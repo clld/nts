@@ -32,16 +32,16 @@ from nts import interfaces as nts_interfaces
 
 
 @implementer(nts_interfaces.IFamily)
-class Family(Base, CustomModelMixin, Versioned):
-    pk = Column(String, primary_key=True)
-    name = Column(String, unique=True)
+class Family(Base, IdNameDescriptionMixin, Versioned):
+    pass
 
 @implementer(interfaces.ILanguage)
 class ntsLanguage(Language, CustomModelMixin):
     pk = Column(Integer, ForeignKey('language.pk'), primary_key=True)
-    family_pk = Column(String, ForeignKey('family.pk'))
+    family_pk = Column(Integer, ForeignKey('family.pk'))
     family = relationship(Family, backref=backref("languages", order_by="Language.name"))
     representation = Column(Integer)
+    macroarea = Column(Unicode)
 
 @implementer(interfaces.IValue)
 class ntsValue(Value, CustomModelMixin):

@@ -2,12 +2,15 @@ from sqlalchemy.orm import joinedload, joinedload_all
 
 from clld.db.meta import DBSession
 from clld.db.models import common
+from clld.db.util import get_distinct_values
 from clld.web.util.helpers import linked_contributors, linked_references
 
 from clld.web import datatables
 from clld.web.datatables.base import (
     DataTable, Col, filter_number, LinkCol, DetailsRowLinkCol, IdCol, LinkToMapCol
 )
+
+from clld.web.datatables.value import Values, ValueNameCol
 
 from nts.models import FeatureDomain, Feature, ntsLanguage, Family, ntsValue, Designer
 
@@ -37,6 +40,7 @@ class FeatureDomainCol(_FeatureDomainCol):
 
     #def search(self, qs):
     #    return FeatureDomain.name.contains(qs)
+
 
 class FamilyCol(Col):
     def format(self, item):
@@ -78,10 +82,11 @@ class Languages(datatables.Languages):
 
     def col_defs(self):
         return [
-            LinkCol(self, 'Name'),
-            IdCol(self, 'ISO-639-3', sClass='left'),
+            LinkCol(self, 'Name', model_col=ntsLanguage.name),
+            IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id),
             #FamilyCol(self, 'Family'),
             Col(self, 'Family', model_col=Family.name, get_object=lambda i: i.family),
+            Col(self, 'Macro Area', model_col=ntsLanguage.macroarea, choices=get_distinct_values(ntsLanguage.macroarea)),
             Col(self, 'Features', model_col=ntsLanguage.representation),
             LinkToMapCol(self, 'm'),
         ]
@@ -95,32 +100,61 @@ class Designers(datatables.Contributions):
             Col(self, 'More Information', model_col=Designer.pdflink),
         ]
 
-class Datapoints(DataTable):
-    __constraints__ = [Feature, ntsLanguage]
-
+class Datapoints(Values):
     def base_query(self, query):
-        query = query.join(ntsValue).options(joinedload_all(ntsValue.language)).join(ntsValue.parameter).options(joinedload_all(ntsValue.parameter)).distinct()
-        if self.ntslanguage:
-            query = query.filter(ntsValue.language_pk == self.ntslanguage.pk)
-        if self.feature:
-            query = query.filter(ntsValue.parameter_pk == self.feature.pk)
+        query = Values.base_query(self, query)
+        if self.language:
+            query = query.options(
+                joinedload_all(common.Value.valueset, common.ValueSet.parameter),
+                joinedload(common.Value.domainelement),
+            )
         return query
+        #query = query.join(ntsValue).options(joinedload_all(ntsValue.language)).join(ntsValue.parameter).options(joinedload_all(ntsValue.parameter)).distinct()
+        #if self.ntslanguage:
+        #    query = query.filter(ntsValue.language_pk == self.ntslanguage.pk)
+        #if self.feature:
+        #    query = query.filter(ntsValue.parameter_pk == self.feature.pk)
+        #return query
 
     def col_defs(self):
+        name_col = ValueNameCol(self, 'value')
+        if self.parameter and self.parameter.domain:
+            name_col.choices = [de.name for de in self.parameter.domain]
+
         cols = []
-        if not self.ntslanguage:
-            cols = cols + [LinkCol(self, 'Name', model_col=ntsLanguage.name, get_object=lambda i: i.language), IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id, get_object=lambda i: i.language)]
-        if not self.feature:
-            cols = cols + [LinkCol(self, 'Feature', model_col=Feature.name, get_object=lambda i: i.parameter), IdCol(self, 'Feature Id', sClass='left', model_col=Feature.id, get_object=lambda i: i.parameter)]
+        if self.parameter:
+            cols = [
+                LinkCol(
+                    self, 'Name',
+                    model_col=common.Language.name,
+                    get_object=lambda i: i.valueset.language),
+                LanguageIdCol(
+                    self, 'ISO-639-3',
+                    model_col=common.Language.id,
+                    get_object=lambda i: i.valueset.language)]
+        elif self.language:
+            cols = [
+                LinkCol(
+                    self, 'Feature',
+                    model_col=common.Parameter.name,
+                    get_object=lambda i: i.valueset.parameter),
+                FeatureIdCol(
+                    self, 'Feature Id',
+                    sClass='left', model_col=common.Parameter.id,
+                    get_object=lambda i: i.valueset.parameter)]
 
         cols = cols + [
-            LinkCol(self, 'Value'),
-            Col(self, 'Source', model_col=ntsValue.source),
+            name_col,
+            Col(self, 'Description'),
+            #RefsCol(self, 'source'),
+            Col(self, 'Source',
+                model_col=common.ValueSet.source,
+                get_object=lambda i: i.valueset),
         ]
         return cols
 
     def get_options(self):
-        if self.ntslanguage or self.feature:
+        if self.language or self.parameter:
             # if the table is restricted to the values for one language, the number of
             # features is an upper bound for the number of values; thus, we do not
             # paginate.
