@@ -9,6 +9,7 @@ from clld.scripts.util import initializedb, Data, gbs_func, bibtex2source, glott
 from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import get_distinct_values
+from clld.lib.bibtex import unescape
 
 import nts
 from nts import models
@@ -146,9 +147,8 @@ def main(args):
         fam = data.add(models.Family, family, id=family, name=family, jsondata={"icon": ficons[family]})
     DBSession.flush()
 
-
     for lgid in lgs.iterkeys():
-        lang = data.add(models.ntsLanguage, lgid, id = lgid, name = lgs[lgid], family=data["Family"][lg_to_fam[lgid]], representation = nfeatures[lgid], latitude = float(lats[lgid]), longitude = float(lons[lgid]), macroarea = lg_to_ma[lgid])
+        lang = data.add(models.ntsLanguage, lgid, id=lgid, name=unescape(lgs[lgid]), family=data["Family"][lg_to_fam[lgid]], representation = nfeatures[lgid], latitude = float(lats[lgid]), longitude = float(lons[lgid]), macroarea = lg_to_ma[lgid])
         if not lgid.startswith('NOCODE'):
             iso = data.add(
                 common.Identifier, lgid,

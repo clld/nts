@@ -42,16 +42,6 @@ class FeatureDomainCol(_FeatureDomainCol):
     #    return FeatureDomain.name.contains(qs)
 
 
-class FamilyCol(Col):
-    def format(self, item):
-        return item.family.name
-
-    def order(self):
-        return Family.name
-
-    def search(self, qs):
-        return Family.name.contains(qs)
-
 #class DesignerCol(LinkCol):
 #    def format(self, item):
 #        return linked_contributors(self.dt.req, item.designer)
@@ -84,12 +74,12 @@ class Languages(datatables.Languages):
         return [
             LinkCol(self, 'Name', model_col=ntsLanguage.name),
             IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id),
-            #FamilyCol(self, 'Family'),
             Col(self, 'Family', model_col=Family.name, get_object=lambda i: i.family),
             Col(self, 'Macro Area', model_col=ntsLanguage.macroarea, choices=get_distinct_values(ntsLanguage.macroarea)),
             Col(self, 'Features', model_col=ntsLanguage.representation),
             LinkToMapCol(self, 'm'),
         ]
+
 
 class Designers(datatables.Contributions):
     def col_defs(self):

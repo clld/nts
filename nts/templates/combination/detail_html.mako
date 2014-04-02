@@ -1,4 +1,4 @@
-<%inherit file="../sails.mako"/>
+<%inherit file="../nts.mako"/>
 <%namespace name="util" file="../util.mako"/>
 <%namespace name="lib" file="../lib.mako"/>
 <%! active_menu_item = "parameters" %>

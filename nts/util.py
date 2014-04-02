@@ -46,11 +46,9 @@ def icons(req, param):
         button('Close', **{'data-dismiss': 'clickover'}))
 
 
+#def source_detail_html(context=None, request=None, **kw):
+#    return {'referents': get_referents(context)}
 
-
-
-def source_detail_html(context=None, request=None, **kw):
-    return {'referents': get_referents(context)}
 
 #def _valuesets(parameter):
 #    return DBSession.query(ValueSet)\
@@ -62,17 +60,10 @@ def source_detail_html(context=None, request=None, **kw):
 def parameter_detail_html(context=None, request=None, **kw):
     return dict(select=CombinationMultiSelect(request, selected=[context]))
 
+
 def combination_detail_html(context=None, request=None, **kw):
     """feature combination view
     """
-    convert = lambda spec: ''.join(c if i == 0 else c + c for i, c in enumerate(spec))
-    for i, de in enumerate(context.domain):
-        param = 'v%s' % i
-        if param in request.params:
-            name = convert(request.params[param])
-            if name in ICON_MAP:
-                de.icon = ICON_MAP[name]
-
     return dict(
         select=CombinationMultiSelect(request, combination=context),
         map=CombinedMap(context, request))
