@@ -19,6 +19,8 @@ class FeatureIdCol(IdCol):
         if self.model_col:
             return self.model_col.contains(qs)
 
+    def order(self):
+        return Feature.sortkey_str, Feature.sortkey_int
 
 class _FeatureDomainCol(Col):
     def __init__(self, *args, **kw):
@@ -61,6 +63,7 @@ class Features(datatables.Parameters):
         return [
             FeatureIdCol(self, 'Id', sClass='left', model_col=Feature.id),
             LinkCol(self, 'Feature', model_col=Feature.name),
+            Col(self, 'Abbreviation', model_col=Feature.abbreviation),
             FeatureDomainCol(self, 'Domain'),
             Col(self, 'Designer', model_col=Designer.contributor, get_object=lambda i: i.designer), # get_object=lambda i: i.feature.designer),
             Col(self, 'Languages', model_col=Feature.representation),

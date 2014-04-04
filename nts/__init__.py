@@ -50,6 +50,7 @@ def main(global_config, **settings):
         ('dataset', partial(menu_item, 'dataset', label='Home')),
         ('parameters', partial(menu_item, 'parameters', label='Features')),
         ('languages', partial(menu_item, 'languages')),
+        ('sources', partial(menu_item, 'sources')),
         ('designers', partial(menu_item, 'contributions', label="Authors")),
     )
 

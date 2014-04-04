@@ -3,6 +3,10 @@
 <%! active_menu_item = "languages" %>
 <%block name="title">${_('Language')} ${ctx.name}</%block>
 
+<ul class="breadcrumb">
+<li>Family: ${ctx.family} <span class="divider">/</span></li>
+</ul>
+
 <h2>${_('Language')} ${ctx.name}</h2>
 
 ${request.get_datatable('values', h.models.Value, language=ctx).render()}

@@ -1,6 +1,7 @@
 # coding: utf8
 from __future__ import unicode_literals
 import sys
+import transaction
 
 from pytz import utc
 from datetime import date, datetime
@@ -9,8 +10,10 @@ from datetime import date, datetime
 from clld.scripts.util import initializedb, Data, gbs_func, bibtex2source, glottocodes_by_isocode
 from clld.db.meta import DBSession
 from clld.db.models import common
+from clld.db.util import compute_language_sources
 from clld.db.util import get_distinct_values
 from clld.lib.bibtex import unescape
+from clld.lib.bibtex import EntryType, Record
 from clld.util import slug
 
 import nts
@@ -23,13 +26,17 @@ import os
 reline = re.compile("[\\n\\r]")
 refield = re.compile("\\t")
 
-#TODO Macro-Areas
+
+def ktfbib(s):
+    rs = [z.split(":::") for z in s.split("|||")]
+    [k, typ] = rs[0]
+    return (k, (typ, dict(rs[1:])))
 
 def dtab(fn = "nts_test.tab", encoding = "utf-8"):
     lines = reline.split(loadunicode(fn, encoding = encoding))
     lp = [[x.strip() for x in refield.split(l)] for l in lines if l.strip()]
     topline = lp[0]
-    lpd = [dict(zip(topline, l)) for l in lp[1:]]
+    lpd = [dict(zip(topline, l) + [("fromfile", fn)]) for l in lp[1:]]
     return lpd
 
 def opv(d, func):
@@ -118,18 +125,15 @@ def main(args):
     fp = treetxt(loadunicode('lff.txt') + loadunicode('lof.txt'))
     ps = paths(fp)
     lg_to_fam = dict([(p[-1], p[0].replace("_", " ")) for p in ps])
-    lg_to_fam['qgr'] = "Nuclear_Trans_New_Guinea"
+    lg_to_fam['qgr'] = "Nuclear Trans New Guinea"
     lg_to_fam['qtf'] = "TODO"
     lg_to_fam['qss'] = "TODO"
     lg_to_fam['azr'] = "TODO"
-    lg_to_fam['NOCODE_Sisiqa'] = "Austronesian"
 
     lats['qgr'] = 0.0
     lats['qtf'] = 0.0
     lats['qss'] = 0.0
     lats['azr'] = 0.0
-    lats['NOCODE_Sisiqa'] = 0.0
-    lons['NOCODE_Sisiqa'] = 0.0
     lons['qgr'] = 0.0
     lons['qtf'] = 0.0
     lons['qss'] = 0.0
@@ -150,7 +154,7 @@ def main(args):
     DBSession.flush()
 
     for lgid in lgs.iterkeys():
-        lang = data.add(models.ntsLanguage, lgid, id=lgid, name=unescape(lgs[lgid]), family=data["Family"][lg_to_fam[lgid]], representation = nfeatures[lgid], latitude = float(lats[lgid]), longitude = float(lons[lgid]), macroarea = lg_to_ma[lgid])
+        lang = data.add(models.ntsLanguage, lgid, id=lgid, name=unescape(lgs[lgid]), family=data["Family"][lg_to_fam[lgid]], representation = nfeatures.get(lgid, 0), latitude = float(lats[lgid]), longitude = float(lons[lgid]), macroarea = lg_to_ma[lgid])
         if not lgid.startswith('NOCODE'):
             iso = data.add(
                 common.Identifier, lgid,
@@ -204,7 +208,7 @@ def main(args):
 
     nlgs = opv(grp2([(ld['feature_alphanumid'], ld['language_id']) for ld in ldps if ld["value"] != "?"]), len)
     for (fid, f) in fs.iteritems():
-        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]])
+        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]], sortkey_str="", sortkey_int=int(fid))
 
     #Families
     DBSession.flush()
@@ -238,9 +242,9 @@ def main(args):
     for ((f, lg), ixs) in flg.iteritems():
         if len(ixs) == 1:
             continue
-        print "Dup value", f, lg
-        for ix in ixs:
-            print ldps[ix] 
+        print "Dup value", f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile']) for ix in ixs]
+        #for ix in ixs:
+        #    print ldps[ix] 
         print "\n\n"
 
     done = {}
@@ -261,15 +265,16 @@ def main(args):
 
         valueset = data.add(
             common.ValueSet,
-            ld['value'],
+            id_,
             id=id_,
             language=language,
             parameter=parameter,
-            source=ld["source"],
+            source=ld["source"] or None,
             contribution=parameter.designer
         )
         data.add(
-            models.ntsValue, ld['value'],
+            models.ntsValue,
+            id_,
             id=id_,
             domainelement=data['DomainElement'][(ld['feature_alphanumid'], ld['value'])],
             jsondata={"icon": data['DomainElement'][(ld['feature_alphanumid'], ld['value'])].jsondata},
@@ -283,6 +288,40 @@ def main(args):
 
 
 
+    #Sources
+    sources = [ktfbib(bibsource) for ld in ldps if ld.get('bibsources') for bibsource in ld['bibsources'].split(",,,")]
+    for (k, (typ, bibdata)) in sources:
+        rec = Record(typ, k, **bibdata)
+        if not data["Source"].has_key(k):
+            data.add(common.Source, k, _obj=bibtex2source(rec))
+    DBSession.flush()
+
+    #ValueSetReference
+    #migrate(
+    #    'datapoint_reference'
+    #    common.ValueSetReference,
+    #    lambda r: dict(
+    #        valueset=data['ValueSet'][r['datapoint_id']],
+    #        source=data['Source'][r['reference_id']],
+    #        description=r['note']))
+    for ld in ldps:
+        #if not ld.has_key("bibsources"):
+        #     print ld
+        sources = [ktfbib(bibsource) for bibsource in ld['bibsources'].split(",,,") if ld.get('bibsources')]
+        parameter = data['Feature'][ld['feature_alphanumid']]
+        language = data['ntsLanguage'][ld['language_id']]
+        id_ = '%s-%s' % (parameter.id, language.id)
+        if not data["ValueSet"].has_key(id_):
+            #print "Skip source for", id_, "because no valueset"
+            continue
+        #print "Add src for", id_, k 
+        for (k, (typ, bibdata)) in sources:    
+            data.add(
+                common.ValueSetReference,
+                "%s-%s" % (id_, k),
+                valueset=data["ValueSet"][id_],
+                source=data['Source'][k])
+    DBSession.flush()
 
 
 
@@ -308,7 +347,7 @@ def main(args):
     DBSession.add(dataset)
     DBSession.flush()
 
-    editor = data.add(common.Contributor, "Harald Hammarstrom", id="Harald Hammarstrom", name="Harald Hammarström", email = "harald.hammarstroem@mpi.nl")
+    editor = data.add(common.Contributor, "Harald Hammarstrom", id="Harald Hammarstrom", name="Harald Hammarstrom", email = "harald.hammarstroem@mpi.nl")
     common.Editor(dataset=dataset, contributor=editor, ord=0)
     editor = data.add(common.Contributor, "Suzanne van der Meer", id="Suzanne van der Meer", name="Suzanne van der Meer", email = "suzanne.vandermeer@mpi.nl")
     common.Editor(dataset=dataset, contributor=editor, ord=1)
@@ -320,120 +359,6 @@ def main(args):
 
 
 
-
-
-
-
-
-#TODO
-#    old_db = DB
-#
-#    with transaction.manager:
-#        for row in old_db.execute("select * from families"):
-#            data.add(models.Family, row['famid'], id=row['famid'], name=row['canonical_name'], description=row['subsistence'])
-#        DBSession.flush()
-
-#        for row in old_db.execute("select * from languages"):
-#            print "LGS", row
-#            data.add(common.Identifier, row['lgid'],
-#                     id=row['lgid'], name=row['canonical_name'], type='iso639-3', description="HELLO")
-#        DBSession.flush()
-
-#        for row in old_db.execute("select * from languages"):
-#            print "HHLGS", row
-            #kw = dict((key, row[key]) for key in ['lgid', 'canonical_name', 'canonical_name', 'canonical_name'])
-#            kw = {'id': row['lgid'], 'name': row['canonical_name']}
-#            lang = data.add(models.HHLanguage, row['lgid'], **kw)
-#            #lang = data.add(models.WalsLanguage, row['lgid'],
-#            #                samples_100=True, samples_200=True, **kw)
-#            #lang.genus = data['Genus'][row['genus_id']]
-
-        #for row in old_db.execute("select * from author"):
-        #    data.add(common.Contributor, row['id'], name=row['name'], url=row['www'], id=row['id'], description=row['note'])
-#        DBSession.flush()
-
-        #for row in old_db.execute("select * from country_language"):
-        #    DBSession.add(models.CountryLanguage(
-        #        language=data['WalsLanguage'][row['language_id']],
-        #        country=data['Country'][row['country_id']]))
-
-        #for row in old_db.execute("select * from altname_language"):
-        #    DBSession.add(common.LanguageIdentifier(
-        #        language=data['WalsLanguage'][row['language_id']],
-        #        identifier=data['Identifier'][(row['altname_name'], row['altname_type'])],
-        #        description=row['relation']))
-        #DBSession.flush()
-
-        #for row in old_db.execute("select * from isolanguage_language"):
-        #    DBSession.add(common.LanguageIdentifier(
-        #        language=data['WalsLanguage'][row['language_id']],
-        #        identifier=data['Identifier'][row['isolanguage_id']],
-        #        description=row['relation']))
-        #DBSession.flush()
-
-        #for row in old_db.execute("select * from area"):
-        #    data.add(models.Area, row['id'], name=row['name'], dbpedia_url=row['dbpedia_url'], id=str(row['id']))
-        #DBSession.flush()
-
-        #for row in old_db.execute("select * from chapter"):
-        #    c = data.add(models.Chapter, row['id'], id=row['id'], name=row['name'])
-        #    c.area = data['Area'][row['area_id']]
-        #DBSession.flush()
-
-#        for row in old_db.execute("select * from features"):
-#            print "FEAT", row
-#            param = data.add(models.Feature, row['fid'], id=row['fid'], name=row['fid'], ordinal_qualifier=row['fid'][0])
-            #param.chapter = data['Chapter'][row['chapter_id']]
-#        DBSession.flush()
-
-        #for row in old_db.execute("select * from features"):
-        #    data.add(
-        #        common.DomainElement, (row['fid'], row['fid']),
-        #        id='%s-%s' % (row['fid'], row['fid']),
-        #        name=row["fdoc"],
-        #        description="HELLO",
-        #        jsondata={},
-        #        number=row['fid'],
-        #        parameter="HEJ")
-        #DBSession.flush()
-
-#        for row in old_db.execute("select * from has"):
-#            print "HAS", row
-#            parameter = data['Feature'][row['fid']]
-#            language = data['HHLanguage'][row['lgid']]
-#            id_ = '%s-%s' % (parameter.id, language.id)
-#
-#            valueset = data.add(
-#                common.ValueSet, row['lgid'],
-#                id=id_,
-#                language=language,
-#                parameter=parameter,
-#                contribution=parameter.chapter,
-#            )
-            #data.add(
-            #    common.Value, row['lgid'],
-            #    id=id_,
-            #    domainelement=data['DomainElement'][(row['fid'], row['val'])],
-            #    valueset=valueset,
-            #)
-            #domainelement=data['DomainElement'][(row['fid'], row['val'])],
-#        DBSession.flush()
-
-        #for row in old_db.execute("select * from datapoint_reference"):
-        #    common.ValueSetReference(
-        #        valueset=data['ValueSet'][row['datapoint_id']],
-        #        source=data['Source'][row['reference_id']],
-        #        description=row['note'],
-        #    )
-
-        #for row in old_db.execute("select * from author_chapter"):
-        #    DBSession.add(common.ContributionContributor(
-        #        ord=row['order'],
-        #        primary=row['primary'] != 0,
-        #        contributor_pk=data['Contributor'][row['author_id']].pk,
-        #        contribution_pk=data['Chapter'][row['chapter_id']].pk))
-
-#    DBSession.flush()
 
 
 
@@ -453,6 +378,11 @@ def prime_cache(args):
     it will have to be run periodiucally whenever data has been updated.
     """
 
+    compute_language_sources()
+    transaction.commit()
+    transaction.begin()
+
+    gbs_func('update', args)
 
 if __name__ == '__main__':
     initializedb(create=main, prime_cache=prime_cache)
