@@ -35,6 +35,12 @@ ${h.map_marker_img(req, de)}
 <dd>${ctx.designer.contributor}</dd>
 <dt>Additional Information:</dt>
 <dd>${ctx.doc}</dd>
+<dt>French:</dt>
+<dd>${ctx.name_french}</dd>
+<dt>Clarification:</dt>
+<dd>${ctx.clarification}</dd>
+<dt>Alternative Id:</dt>
+<dd>${ctx.alternative_id}</dd>
 
 % if ctx.dependson:
 <dt>Logically depends on:</dt>

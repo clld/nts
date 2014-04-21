@@ -93,6 +93,10 @@ def treetxt(txt):
 
     return paths_to_d(r.iterkeys())
 
+def mergeds(ds):
+    kvs = grp2([(k, v) for d in ds for (k, v) in d.iteritems()])
+    kv = opv(kvs, lambda vs: max([(len(v), v) for v in vs])[1])
+    return kv
 
 from path import path
 
@@ -112,13 +116,15 @@ def main(args):
 
     tabfns = [fn.basename() for fn in DATA_DIR.listdir('nts_*.tab')]
     print "Sheets found", tabfns
-    ldps = [ld for fn in tabfns for ld in dtab(fn)]
+    ldps = [ld for fn in tabfns for ld in dtab(fn) if not ld["feature_alphanumid"].startswith("DRS") and ld["feature_alphanumid"].find(".") == -1]
     ldps = [dict([(k, v.replace(".", "-") if k in ['feature_alphanumid', 'value'] else v) for (k, v) in ld.iteritems()]) for ld in ldps]
     for ld in ldps:
         if not ld.has_key('language_id') or not ld.has_key('feature_alphanumid'):
             print "MISSING FEATURE OR LANGUAGE", ld
     lgs = dict([(ld['language_id'], ld['language_name']) for ld in ldps])
     nfeatures = opv(grp2([(ld['language_id'], ld['feature_alphanumid']) for ld in ldps if ld["value"] != "?"]), len)
+    lgs["ygr"] = "Hua"
+    lgs["qgr"] = "Yagaria"
 
 
     #Families
@@ -126,25 +132,13 @@ def main(args):
     ps = paths(fp)
     lg_to_fam = dict([(p[-1], p[0].replace("_", " ")) for p in ps])
     lg_to_fam['qgr'] = "Nuclear Trans New Guinea"
-    lg_to_fam['qtf'] = "TODO"
-    lg_to_fam['qss'] = "TODO"
-    lg_to_fam['azr'] = "TODO"
 
-    lats['qgr'] = 0.0
-    lats['qtf'] = 0.0
-    lats['qss'] = 0.0
-    lats['azr'] = 0.0
-    lons['qgr'] = 0.0
-    lons['qtf'] = 0.0
-    lons['qss'] = 0.0
-    lons['azr'] = 0.0
+    lats['qgr'] = -6.21
+    lons['qgr'] = 145.25
 
     mas = dtab("macroareas.tab")
     lg_to_ma = dict([(d['language_id'], d['macro_area']) for d in mas])
-    lg_to_ma['qgr'] = "TODO"
-    lg_to_ma['qtf'] = "TODO"
-    lg_to_ma['qss'] = "TODO"
-    lg_to_ma['azr'] = "TODO"
+    lg_to_ma['qgr'] = "Papua"
  
 
     families = grp2([(lg_to_fam[lg], lg) for lg in lgs.keys()])
@@ -176,9 +170,9 @@ def main(args):
     DBSession.flush()
 
     #Designers
-    designer_info = dict([(dd['designer'], dd) for dd in dtab("ntscontributions.tab")])
-    designers = dict([(ld['designer'], ld['feature_domain']) for ld in ldps])
-    for (designer_id, (designer, domain)) in enumerate(designers.iteritems()):
+    designer_info = dict([(dd['designer'], dd) for dd in (dtab("ntscontributions.tab") + dtab("ntscontacts.tab"))])
+    #designers = dict([(ld['designer'], ld['feature_domain']) for ld in ldps])
+    for (designer_id, designer) in enumerate(designer_info.iterkeys()):
         #print domain
         #print designer_info[designer]
         #print designer_id, designer_info[designer]
@@ -188,9 +182,10 @@ def main(args):
 
 
     #Features
-    prefer = set(['feature_name']) #feature_information',  vdoc=f['feature_possible_values'], representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f["depends_on"], abbreviation=f["abbreviation"], featuredomain = data['FeatureDomain'][f["feature_domain"
-    fslds = grp2([(ld['feature_alphanumid'], (len(prefer.intersection(ld.keys())), i)) for (i, ld) in enumerate(ldps)])
-    fs = opv(fslds, lambda lis: ldps[max(lis)[1]])
+    #prefer = set(['feature_name']) #feature_information',  vdoc=f['feature_possible_values'], representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f["depends_on"], abbreviation=f["abbreviation"], featuredomain = data['FeatureDomain'][f["feature_domain"
+    #fslds = grp2([(ld['feature_alphanumid'], (len(prefer.intersection(ld.keys())), i)) for (i, ld) in enumerate(ldps)])
+    fslds = grp2([(ld['feature_alphanumid'], i) for (i, ld) in enumerate(ldps)])
+    fs = opv(fslds, lambda lis: mergeds([ldps[i] for i in lis]))
     #for (f, fld) in fs.iteritems():
     #    if not fld.has_key('feature_name'):
     #        print fld, fslds[fld['feature_alphanumid']]
@@ -208,7 +203,9 @@ def main(args):
 
     nlgs = opv(grp2([(ld['feature_alphanumid'], ld['language_id']) for ld in ldps if ld["value"] != "?"]), len)
     for (fid, f) in fs.iteritems():
-        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]], sortkey_str="", sortkey_int=int(fid))
+        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]], name_french = f.get('francais', ""), clarification=f.get("draft of clarifying comments to outsiders (hedvig + dunn + harald + suzanne)", ""), alternative_id = f.get("old feature number", ""), sortkey_str="", sortkey_int=int(fid))
+
+
 
     #Families
     DBSession.flush()
@@ -240,12 +237,13 @@ def main(args):
 
     flg = grp2([((ld['feature_alphanumid'], ld['language_id']), i) for (i, ld) in enumerate(ldps)])
     for ((f, lg), ixs) in flg.iteritems():
-        if len(ixs) == 1:
+        ixvs = set([ldps[ix]['value'] for ix in ixs])
+        if len(ixvs) == 1:
             continue
         print "Dup value", f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile']) for ix in ixs]
         #for ix in ixs:
         #    print ldps[ix] 
-        print "\n\n"
+        #print "\n\n"
 
     done = {}
     for ld in ldps:
@@ -260,7 +258,7 @@ def main(args):
             continue
 
         if not data['DomainElement'].has_key((ld['feature_alphanumid'], ld['value'])):
-            print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], "not in the set of legal values"
+            print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'], "not in the set of legal values"
             continue
 
         valueset = data.add(
@@ -289,7 +287,7 @@ def main(args):
 
 
     #Sources
-    sources = [ktfbib(bibsource) for ld in ldps if ld.get('bibsources') for bibsource in ld['bibsources'].split(",,,")]
+    sources = [ktfbib(bibsource) for ld in ldps if ld.get(u'bibsources') for bibsource in ld[u'bibsources'].split(",,,")]
     for (k, (typ, bibdata)) in sources:
         rec = Record(typ, k, **bibdata)
         if not data["Source"].has_key(k):
@@ -305,9 +303,9 @@ def main(args):
     #        source=data['Source'][r['reference_id']],
     #        description=r['note']))
     for ld in ldps:
-        #if not ld.has_key("bibsources"):
-        #     print ld
-        sources = [ktfbib(bibsource) for bibsource in ld['bibsources'].split(",,,") if ld.get('bibsources')]
+        if not ld.has_key("bibsources"):
+             print "no bibsource", ld
+        sources = [ktfbib(bibsource) for bibsource in ld[u'bibsources'].split(",,,") if ld.get(u'bibsources')]
         parameter = data['Feature'][ld['feature_alphanumid']]
         language = data['ntsLanguage'][ld['language_id']]
         id_ = '%s-%s' % (parameter.id, language.id)

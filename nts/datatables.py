@@ -140,11 +140,11 @@ class Datapoints(Values):
 
         cols = cols + [
             name_col,
-            Col(self, 'Description'),
             #RefsCol(self, 'source'),
             Col(self, 'Source',
                 model_col=common.ValueSet.source,
                 get_object=lambda i: i.valueset),
+            Col(self, 'Comment', model_col=ntsValue.comment),
         ]
         return cols
 
