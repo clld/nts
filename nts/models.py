@@ -37,7 +37,7 @@ class Family(Base, IdNameDescriptionMixin, Versioned):
 
 
 @implementer(interfaces.ILanguage)
-class ntsLanguage(Language, CustomModelMixin):
+class ntsLanguage(CustomModelMixin, Language):
     pk = Column(Integer, ForeignKey('language.pk'), primary_key=True)
     family_pk = Column(Integer, ForeignKey('family.pk'))
     family = relationship(Family, backref=backref("languages", order_by="Language.name"))
@@ -46,7 +46,7 @@ class ntsLanguage(Language, CustomModelMixin):
 
 
 @implementer(interfaces.IValue)
-class ntsValue(Value, CustomModelMixin):
+class ntsValue(CustomModelMixin, Value):
     pk = Column(Integer, ForeignKey('value.pk'), primary_key=True)
     comment = Column(Unicode)
     example = Column(Unicode)
@@ -55,13 +55,13 @@ class ntsValue(Value, CustomModelMixin):
         return self.domainelement.description if self.domainelement else self.name or self.id
 
 
-class FeatureDomain(Base, CustomModelMixin, Versioned):
+class FeatureDomain(Base, Versioned):
     pk = Column(String, primary_key=True)
     name = Column(String, unique=True)
 
 
 @implementer(interfaces.IContribution)
-class Designer(Contribution, CustomModelMixin, Versioned):
+class Designer(CustomModelMixin, Contribution, Versioned):
     """Contributions in NTS are designers. These comprise a set of
     features with corresponding values and a descriptive text.
     """
@@ -78,7 +78,7 @@ class Designer(Contribution, CustomModelMixin, Versioned):
 
 
 @implementer(interfaces.IParameter)
-class Feature(Parameter, CustomModelMixin, Versioned):
+class Feature(CustomModelMixin, Parameter, Versioned):
     """Parameters in NTS are called feature. They are always related to one Designer.
     """
     #__table_args__ = (UniqueConstraint('contribution_pk', 'ordinal_qualifier'),)
