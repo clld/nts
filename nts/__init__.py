@@ -2,22 +2,20 @@ import re
 from functools import partial
 from path import path
 from clld.interfaces import (
-    IParameter, IMapMarker, IDomainElement, IValue, ILanguage,
-    ICtxFactoryQuery, IBlog,
+    IParameter, IMapMarker, IDomainElement, IValue, ILanguage, IBlog,
 )
 from clld.web.adapters.base import adapter_factory
 from clld.web.app import get_configurator, menu_item
 
 # we must make sure custom models are known at database initialization!
 from nts import models
+from nts.blog import Blog
 
 
 def map_marker(ctx, req):
     """to allow for user-selectable markers, we have to look up a possible custom
     selection from the url params.
     """
-
-    icon_map = req.registry.settings['icons']
     icon = None
     if IValue.providedBy(ctx):
         icon = ctx.domainelement.jsondata['icon']
@@ -44,7 +42,10 @@ def main(global_config, **settings):
             icons[m.group('spec')] = convert(m.group('spec'))
     settings['icons'] = icons
 
-    utilities = [(map_marker, IMapMarker)]
+    utilities = [
+        (map_marker, IMapMarker),
+        (Blog(settings), IBlog),
+    ]
     config = get_configurator('nts', *utilities, **dict(settings=settings))
     config.register_menu(
         ('dataset', partial(menu_item, 'dataset', label='Home')),
@@ -55,10 +56,6 @@ def main(global_config, **settings):
     )
 
     config.include('clldmpg')
-    config.include('nts.adapters')
-    config.include('nts.datatables')
-    config.include('nts.maps')
-
     config.register_adapter(adapter_factory(
         'parameter/detail_tab.mako',
         mimetype='application/vnd.clld.tab',
