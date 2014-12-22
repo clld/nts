@@ -21,11 +21,20 @@ from nts.models import Feature, ntsLanguage
 from nts.maps import CombinedMap
 
 
+def comment_button(req, valueset, class_=''):
+    return HTML.form(
+        button(icon('comment'), type='submit', class_=class_, title='comment'),
+        class_='inline',
+        method='POST',
+        action=req.resource_url(valueset))
+
+
 def dataset_detail_html(context=None, request=None, **kw):
     return {
         'stats': context.get_stats([rsc for rsc in RESOURCES if rsc.name in ['language', 'parameter', 'value']]),
         'stats_datapoints': "TODO"
     }
+
 
 def icons(req, param):
     icon_map = req.registry.settings['icons']

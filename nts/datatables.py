@@ -13,6 +13,8 @@ from clld.web.datatables.base import (
 from clld.web.datatables.value import Values, ValueNameCol
 
 from nts.models import FeatureDomain, Feature, ntsLanguage, Family, ntsValue, Designer
+from nts.util import comment_button
+
 
 class FeatureIdCol(IdCol):
     def search(self, qs):
@@ -95,6 +97,13 @@ class Designers(datatables.Contributions):
         ]
 
 
+class CommentCol(Col):
+    __kw__ = dict(bSortable=False, bSearchable=False)
+
+    def format(self, item):
+        return comment_button(self.dt.req, item.valueset)
+
+
 class Datapoints(Values):
     def base_query(self, query):
         query = Values.base_query(self, query)
@@ -145,6 +154,7 @@ class Datapoints(Values):
                 model_col=common.ValueSet.source,
                 get_object=lambda i: i.valueset),
             Col(self, 'Comment', model_col=ntsValue.comment),
+            CommentCol(self, '_'),
         ]
         return cols
 
