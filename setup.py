@@ -1,16 +1,8 @@
 from setuptools import setup, find_packages
 
 requires = [
-    'clld>=0.17',
+    'clld>=0.28',
     'clldmpg',
-    'pyramid',
-    'SQLAlchemy',
-    'transaction',
-    'pyramid_tm',
-    'zope.sqlalchemy',
-    'gunicorn',
-    'psycopg2',
-    'waitress',
     ]
 
 setup(name='nts',
