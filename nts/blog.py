@@ -16,7 +16,7 @@ class Blog(object):
         path = path or '/'
         if not path.startswith('/'):
             path = '/' + path
-        return 'http://%s%s' % (self.host, path)
+        return '%s%s' % (self.host, path)
 
     def _set_category(self, **cat):
         return list(self.wp.set_categories([cat]).values())[0]
