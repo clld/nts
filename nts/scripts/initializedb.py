@@ -77,7 +77,10 @@ def loadunicode(fn, encoding = "utf-8"):
     f = open(DATA_DIR.joinpath(fn), "r")
     a = f.read()
     f.close()
-    return unicode(a, encoding)
+    utxt = unicode(a, encoding)
+    if utxt.startswith(u'\ufeff'):
+        return utxt[1:]
+    return utxt
 
 reisobrack = re.compile("\[([a-z][a-z][a-z]|NOCODE\_[A-Z][^\s\]]+)\]")
 def treetxt(txt):
@@ -170,6 +173,8 @@ def main(args):
     DBSession.flush()
 
     #Designers
+    #for dd in (dtab("ntscontributions.tab") + dtab("ntscontacts.tab")):
+    #    print dd, dd["designer"]
     designer_info = dict([(dd['designer'], dd) for dd in (dtab("ntscontributions.tab") + dtab("ntscontacts.tab"))])
     #designers = dict([(ld['designer'], ld['feature_domain']) for ld in ldps])
     for (designer_id, designer) in enumerate(designer_info.iterkeys()):
@@ -184,16 +189,23 @@ def main(args):
     #Features
     #prefer = set(['feature_name']) #feature_information',  vdoc=f['feature_possible_values'], representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f["depends_on"], abbreviation=f["abbreviation"], featuredomain = data['FeatureDomain'][f["feature_domain"
     #fslds = grp2([(ld['feature_alphanumid'], (len(prefer.intersection(ld.keys())), i)) for (i, ld) in enumerate(ldps)])
+
+    for (i, ld) in enumerate(ldps):
+        if not ld['feature_alphanumid']:
+            print "ILLEGAL FID", i, ld
+
     fslds = grp2([(ld['feature_alphanumid'], i) for (i, ld) in enumerate(ldps)])
     fs = opv(fslds, lambda lis: mergeds([ldps[i] for i in lis]))
+    #print fs[u"162"]
+    #print fslds[u"162"]
     #for (f, fld) in fs.iteritems():
     #    if not fld.has_key('feature_name'):
     #        print fld, fslds[fld['feature_alphanumid']]
-    nameclash_fs = grp2([(ld.get('feature_name', ld['feature_alphanumid']), ld['feature_alphanumid']) for ld in ldps])
+    nameclash_fs = grp2([(f.get('feature_name', fid), fid) for (fid, f) in fs.iteritems()])
     fnamefix = {}
     for (dfeature, dfsids) in nameclash_fs.iteritems():
         if len(dfsids) != 1:
-            print "Feature name clash", dfeature, dfsids
+            print "Feature name clash", "|%s|" % dfeature, sorted(dfsids)
             for dfsid in dfsids:
                 fnamefix[dfsid] = dfeature + " [%s]" % dfsid
         #if dfeature.find(".") != -1:
@@ -203,7 +215,10 @@ def main(args):
 
     nlgs = opv(grp2([(ld['feature_alphanumid'], ld['language_id']) for ld in ldps if ld["value"] != "?"]), len)
     for (fid, f) in fs.iteritems():
-        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]], name_french = f.get('francais', ""), clarification=f.get("draft of clarifying comments to outsiders (hedvig + dunn + harald + suzanne)", ""), alternative_id = f.get("old feature number", ""), sortkey_str="", sortkey_int=int(fid))
+        #if int(fid) == 162:
+        #    print fid, fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), f
+        #    raise AttributeError
+        param = data.add(models.Feature, fid, id=fid, name=fnamefix.get(fid, f.get('feature_name', f['feature_alphanumid'])), doc=f.get('feature_information', ""), vdoc=f.get('feature_possible_values', ""), representation=nlgs.get(fid, 0), designer=data["Designer"][f['designer']], dependson = f.get("depends_on", ""), abbreviation=f.get("abbreviation", ""), featuredomain = data['FeatureDomain'][f["feature_domain"]], name_french = f.get('francais', ""), clarification=f.get("draft of clarifying comments to outsiders (hedvig + dunn + harald + suzanne)", ""), alternative_id = f.get("old feature number", ""), jl_relevant_unit = f.get("relevant unit(s)", ""), jl_function = f.get("function", ""), jl_formal_means = f.get("formal means", ""), sortkey_str="", sortkey_int=int(fid))
 
 
 
@@ -245,6 +260,8 @@ def main(args):
         #    print ldps[ix] 
         #print "\n\n"
 
+
+    errors = {}
     done = {}
     for ld in ldps:
         #if not data['Feature'].has_key(ld['feature_alphanumid']) or not data['Language'].has_key(ld['language_id']):
@@ -259,6 +276,7 @@ def main(args):
 
         if not data['DomainElement'].has_key((ld['feature_alphanumid'], ld['value'])):
             print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'], "not in the set of legal values"
+            errors[(ld['feature_alphanumid'], ld['language_id'])] = (ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'])
             continue
 
         valueset = data.add(
@@ -278,13 +296,23 @@ def main(args):
             jsondata={"icon": data['DomainElement'][(ld['feature_alphanumid'], ld['value'])].jsondata},
             comment=ld["comment"],
             valueset=valueset,
+            contributed_datapoint=ld["contributor"]
         )
         done[id_] = None
     DBSession.flush()
 
     #Domains/Chapters
 
+    #Errors
+    def s2(d, reverse=True):
+        return [(a, d[a]) for (b, a) in sorted([(b, a) for (a, b) in d.iteritems()], reverse=reverse)]
+    def ps2(d, reverse=True):
+        return ''.join(["%s:  %s\n" % x for x in s2(d, reverse=reverse)])
 
+    print len(errors), "Errors"
+    #print ps2(opv(grp2([(err[0], err) for err in errors.values()]), len))
+    #print ps2(opv(grp2([(err[2], err) for err in errors.values()]), len))
+    #print ps2(opv(grp2([(err[4], err) for err in errors.values()]), len))
 
     #Sources
     sources = [ktfbib(bibsource) for ld in ldps if ld.get(u'bibsources') for bibsource in ld[u'bibsources'].split(",,,")]

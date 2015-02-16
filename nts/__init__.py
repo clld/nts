@@ -52,10 +52,14 @@ def main(global_config, **settings):
         ('parameters', partial(menu_item, 'parameters', label='Features')),
         ('languages', partial(menu_item, 'languages')),
         ('sources', partial(menu_item, 'sources')),
-        ('designers', partial(menu_item, 'contributions', label="Authors")),
+        ('designers', partial(menu_item, 'contributions', label="Contributors")),
     )
 
     config.include('clldmpg')
+    config.include('nts.adapters')
+    config.include('nts.datatables')
+    config.include('nts.maps')
+
     config.register_adapter(adapter_factory(
         'parameter/detail_tab.mako',
         mimetype='application/vnd.clld.tab',

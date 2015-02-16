@@ -57,6 +57,9 @@ class FeatureDomainCol(_FeatureDomainCol):
 #    def search(self, qs):
 #        return Feature.designer.contains(qs)
 
+
+
+
 class Features(datatables.Parameters):
     def base_query(self, query):
         return query.join(Designer).options(joinedload_all(Feature.designer)).join(FeatureDomain).options(joinedload_all(Feature.featuredomain))
@@ -66,11 +69,15 @@ class Features(datatables.Parameters):
             FeatureIdCol(self, 'Id', sClass='left', model_col=Feature.id),
             LinkCol(self, 'Feature', model_col=Feature.name),
             Col(self, 'Abbreviation', model_col=Feature.abbreviation),
-            FeatureDomainCol(self, 'Domain'),
+            #FeatureDomainCol(self, 'Domain'),
+            Col(self, 'Morphosynunit', model_col=Feature.jl_relevant_unit),
+            Col(self, 'Form', model_col=Feature.jl_formal_means),
+            Col(self, 'Function', model_col=Feature.jl_function),
             Col(self, 'Designer', model_col=Designer.contributor, get_object=lambda i: i.designer), # get_object=lambda i: i.feature.designer),
             Col(self, 'Languages', model_col=Feature.representation),
             DetailsRowLinkCol(self, 'd', button_text='Values'),
         ]
+
 
 class Languages(datatables.Languages):
     def base_query(self, query):

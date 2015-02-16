@@ -50,6 +50,7 @@ class ntsValue(CustomModelMixin, Value):
     pk = Column(Integer, ForeignKey('value.pk'), primary_key=True)
     comment = Column(Unicode)
     example = Column(Unicode)
+    contributed_datapoint = Column(Unicode)
 
     def __unicode__(self):
         return self.domainelement.description if self.domainelement else self.name or self.id
@@ -101,6 +102,9 @@ class Feature(CustomModelMixin, Parameter, Versioned):
     abbreviation = Column(String)
     sortkey_str = Column(String)
     sortkey_int = Column(Integer)
+    jl_relevant_unit = Column(String)
+    jl_function = Column(String)
+    jl_formal_means = Column(String)
     #chapter = relationship(Chapter, lazy='joined', backref="features")
 #CREATE table features(fid VARCHAR(600) BINARY NOT NULL, fdoc VARCHAR(1000), vdoc VARCHAR(1000), grp VARCHAR(1000), designer VARCHAR(100), dependson VARCHAR(600) references features(fid), PRIMARY KEY (fid(600)));
 
