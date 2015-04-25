@@ -71,7 +71,7 @@ Links to some NTS-related work-in-progress documents:
 <ulist>
 <ul><a href="https://docs.google.com/document/d/1UlqtSUQVk6MopqE0WSE_6fgCqbtyX_lCc312KdLU6s8/edit?usp=sharing">Meeting notes</a></ul>
 
-<ul><a href="https://docs.google.com/document/d/1UlqtSUQVk6MopqE0WSE_6fgCqbtyX_lCc312KdLU6s8/edit?usp=sharing">Collaborative feature sheet</a></ul>
+<ul><a href="https://docs.google.com/spreadsheets/d/1xS6r8G2gdveEBB1kIHdR3eF1A_G-U7fe30hK0tJ2SC8/edit">Collaborative feature sheet</a></ul>
 
 <ul><a href="https://docs.google.com/spreadsheets/d/1siyF5x9tufISU9E42uj5VWzokLnVvdzYlQpHrhHs-CI/edit#gid=0">NTS languages covered and contact details</a></ul>
 </ulist>
