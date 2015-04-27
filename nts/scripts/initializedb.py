@@ -225,7 +225,7 @@ def main(args):
     #Families
     DBSession.flush()
 
-    fvs = dict([(ld['feature_alphanumid'], ld['feature_possible_values']) for ld in ldps])
+    fvs = opv(grp2([(ld['feature_alphanumid'], ld['feature_possible_values']) for ld in ldps]), lambda vs: max([(len(v), v) for v in vs])[1])
     for (fid, vs) in fvs.iteritems():
         vdesclist = [veq.split("==") for veq in vs.split("||")]
         try:
@@ -275,7 +275,7 @@ def main(args):
             continue
 
         if not data['DomainElement'].has_key((ld['feature_alphanumid'], ld['value'])):
-            print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'], "not in the set of legal values"
+            print ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'], "not in the set of legal values", "(%s)" % sorted([y for (x, y) in data['DomainElement'].iterkeys() if x == ld['feature_alphanumid']])
             errors[(ld['feature_alphanumid'], ld['language_id'])] = (ld['feature_alphanumid'], ld.get('feature_name', "[Feature Name Lacking]"), ld['language_id'], ld['value'], ld['fromfile'])
             continue
 
