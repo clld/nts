@@ -18,7 +18,7 @@ class Blog(object):
             path = '/' + path
         return '%s%s' % (self.host, path)
 
-    def _set_category(self, **cat):
+    def _set_category(self, **cat):  # pragma: no cover
         return list(self.wp.set_categories([cat]).values())[0]
 
     @staticmethod
@@ -37,10 +37,10 @@ class Blog(object):
                 if cat['name'] == 'Features':
                     featureCat = cat['id']
 
-            if languageCat is None:
-                languageCat = self._set_category(name='Languages', slug='languages')
-            if featureCat is None:
-                featureCat = self._set_category(name='Features', slug='features')
+            languageCat = languageCat or self._set_category(
+                name='Languages', slug='languages')
+            featureCat = featureCat or self._set_category(
+                name='Features', slug='features')
 
             # now create the post:
             categories = [
@@ -56,5 +56,5 @@ class Blog(object):
         return res
 
     def feed_url(self, obj, req):
-        return self.url(
-            '%s/feed' % (obj if isinstance(obj, string_types) else self.slug(obj),))
+        path = '%s' % (obj if isinstance(obj, string_types) else self.slug(obj),)
+        return self.url(path + ('feed' if path.endswith('/') else '/feed'))

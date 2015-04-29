@@ -5,7 +5,7 @@ from clld.db.models.common import ValueSet
 
 
 @view_config(route_name='valueset', request_method='POST')
-def comment(request):
+def comment(request):  # pragma: no cover
     """check whether a blog post for the datapoint does exist.
 
     if not, create one and redirect there.

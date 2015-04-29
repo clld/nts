@@ -1,14 +1,10 @@
 from sqlalchemy.orm import joinedload, joinedload_all
 
-from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import get_distinct_values
-from clld.web.util.helpers import linked_contributors, linked_references
 
 from clld.web import datatables
-from clld.web.datatables.base import (
-    DataTable, Col, filter_number, LinkCol, DetailsRowLinkCol, IdCol, LinkToMapCol
-)
+from clld.web.datatables.base import Col, LinkCol, DetailsRowLinkCol, IdCol, LinkToMapCol
 
 from clld.web.datatables.value import Values, ValueNameCol
 
@@ -24,56 +20,25 @@ class FeatureIdCol(IdCol):
     def order(self):
         return Feature.sortkey_str, Feature.sortkey_int
 
-class _FeatureDomainCol(Col):
-    def __init__(self, *args, **kw):
-        super(_FeatureDomainCol, self).__init__(*args, **kw)
-        self.choices = [a.name for a in DBSession.query(FeatureDomain).order_by(FeatureDomain.name)]
-
-    def order(self):
-        return FeatureDomain.name
-
-    def search(self, qs):
-        return FeatureDomain.name.__eq__(qs)
-
-
-class FeatureDomainCol(_FeatureDomainCol):
-    def format(self, item):
-        return item.featuredomain.name
-
-    #def order(self):
-    #    return FeatureDomain.name
-
-    #def search(self, qs):
-    #    return FeatureDomain.name.contains(qs)
-
-
-#class DesignerCol(LinkCol):
-#    def format(self, item):
-#        return linked_contributors(self.dt.req, item.designer)
-
-#    def order(self):
-#        return Feature.designer
-
-#    def search(self, qs):
-#        return Feature.designer.contains(qs)
-
-
-
 
 class Features(datatables.Parameters):
     def base_query(self, query):
-        return query.join(Designer).options(joinedload_all(Feature.designer)).join(FeatureDomain).options(joinedload_all(Feature.featuredomain))
+        return query\
+            .join(Designer).options(joinedload_all(Feature.designer))\
+            .join(FeatureDomain).options(joinedload_all(Feature.featuredomain))
 
     def col_defs(self):
         return [
             FeatureIdCol(self, 'Id', sClass='left', model_col=Feature.id),
             LinkCol(self, 'Feature', model_col=Feature.name),
             Col(self, 'Abbreviation', model_col=Feature.abbreviation),
-            #FeatureDomainCol(self, 'Domain'),
             Col(self, 'Morphosynunit', model_col=Feature.jl_relevant_unit),
             Col(self, 'Form', model_col=Feature.jl_formal_means),
             Col(self, 'Function', model_col=Feature.jl_function),
-            Col(self, 'Designer', model_col=Designer.contributor, get_object=lambda i: i.designer), # get_object=lambda i: i.feature.designer),
+            Col(self,
+                'Designer',
+                model_col=Designer.contributor,
+                get_object=lambda i: i.designer),
             Col(self, 'Languages', model_col=Feature.representation),
             DetailsRowLinkCol(self, 'd', button_text='Values'),
         ]
@@ -88,7 +53,10 @@ class Languages(datatables.Languages):
             LinkCol(self, 'Name', model_col=ntsLanguage.name),
             IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id),
             Col(self, 'Family', model_col=Family.name, get_object=lambda i: i.family),
-            Col(self, 'Macro Area', model_col=ntsLanguage.macroarea, choices=get_distinct_values(ntsLanguage.macroarea)),
+            Col(self,
+                'Macro Area',
+                model_col=ntsLanguage.macroarea,
+                choices=get_distinct_values(ntsLanguage.macroarea)),
             Col(self, 'Features', model_col=ntsLanguage.representation),
             LinkToMapCol(self, 'm'),
         ]
@@ -120,12 +88,6 @@ class Datapoints(Values):
                 joinedload(common.Value.domainelement),
             )
         return query
-        #query = query.join(ntsValue).options(joinedload_all(ntsValue.language)).join(ntsValue.parameter).options(joinedload_all(ntsValue.parameter)).distinct()
-        #if self.ntslanguage:
-        #    query = query.filter(ntsValue.language_pk == self.ntslanguage.pk)
-        #if self.feature:
-        #    query = query.filter(ntsValue.parameter_pk == self.feature.pk)
-        #return query
 
     def col_defs(self):
         name_col = ValueNameCol(self, 'value')
@@ -156,7 +118,6 @@ class Datapoints(Values):
 
         cols = cols + [
             name_col,
-            #RefsCol(self, 'source'),
             Col(self, 'Source',
                 model_col=common.ValueSet.source,
                 get_object=lambda i: i.valueset),

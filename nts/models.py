@@ -47,9 +47,6 @@ class ntsValue(CustomModelMixin, Value):
     example = Column(Unicode)
     contributed_datapoint = Column(Unicode)
 
-    def __unicode__(self):
-        return self.domainelement.description if self.domainelement else self.name or self.id
-
 
 class FeatureDomain(Base, Versioned):
     name = Column(Unicode, unique=True)
@@ -89,8 +86,3 @@ class Feature(CustomModelMixin, Parameter, Versioned):
     jl_relevant_unit = Column(String)
     jl_function = Column(String)
     jl_formal_means = Column(String)
-
-    def __solr__(self, req):
-        res = Parameter.__solr__(self, req)
-        res.update(featuredomain_t=self.featuredomain.name)
-        return res
