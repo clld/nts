@@ -30,6 +30,13 @@ from nts import models
 import issues
 
 
+import codecs
+def savu(txt, fn):
+    f = codecs.open(fn, 'w', encoding = "utf-8")
+    f.write(txt)
+    f.close()
+    return
+
 def ktfbib(s):
     rs = [z.split(":::") for z in s.split("|||")]
     [k, typ] = rs[0]
@@ -97,6 +104,8 @@ def mergeds(ds):
         reverse=True),
         key=lambda t: t[0])}
 
+def longest(ss):
+    return max([(len(s), s) for s in ss])[1]
 
 def dp_dict(ld):
     assert 'language_id' in ld and ld.get('feature_alphanumid')
@@ -132,6 +141,8 @@ def main(args):
 
     for fn in tabfns:
         for ld in dtab(fn):
+            if not ld.has_key(u"feature_alphanumid"):
+                args.log.info("NO FEATUREID %s %s" % (len(ld), ld))
             if not ld["feature_alphanumid"].startswith("DRS") \
                     and ld["feature_alphanumid"].find(".") == -1:
                 ldps.append(dp_dict(ld))
@@ -144,6 +155,8 @@ def main(args):
 
     lgs["ygr"] = "Hua"
     lgs["qgr"] = "Yagaria"
+    #lgs["dba"] = "Bangime"
+    lgs = dict([(lg, unescape(lgname)) for (lg, lgname) in lgs.iteritems()])
 
     #Families
     txt = lines('lff.txt') + lines('lof.txt')
@@ -201,12 +214,22 @@ def main(args):
     fs = [(fid, mergeds(lds)) for fid, lds in
           groupby(ldps, key=lambda d: d['feature_alphanumid'])]
 
+    fvdesc = [(fid, [(ld.get("feature_possible_values"), ld.get("fromfile")) for ld in lds if ld.get("feature_possible_values")]) for fid, lds in groupby(ldps, key=lambda d: d['feature_alphanumid'])]
+    fvdt = [(fid, grp2(vdescs)) for (fid, vdescs) in fvdesc]
+    fvmis = [(fid, vdescs) for (fid, vdescs) in fvdt if len(vdescs) > 1]
+    for (fid, vdescs) in fvmis:
+        print fid, "DIFF VDESC"
+        for (vd, fromf) in vdescs:
+            print vd, set(fromf)
+
     for _, dfsids in groupby(
             sorted((f.get('feature_name', fid), fid) for fid, f in fs),
             key=lambda t: t[0]):
         assert len(list(dfsids)) == 1
 
     for fid, f in fs:
+        if not fid.isdigit():
+            args.log.info("NO INT FID %s" % f)           
         feature = data.add(
             models.Feature, fid,
             id=fid,
@@ -254,7 +277,7 @@ def main(args):
         args.log.warn(
             "Dup value %s %s %s" %
             (f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile']) for ix in ixs]))
-
+        print "Dup value %s %s %s" % (f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile'], ldps[ix].get('provenance')) for ix in ixs])
     errors = {}
     done = set()
     for ld in ldps:
@@ -266,16 +289,21 @@ def main(args):
             continue
 
         if (ld['feature_alphanumid'], ld['value']) not in data['DomainElement']:
+            if not ld["value"].strip():
+                continue
             info = (
                 ld['feature_alphanumid'],
                 ld.get('feature_name', "[Feature Name Lacking]"),
                 ld['language_id'],
                 ld['value'],
                 ld['fromfile'])
-            msg = "%s %s %s %s %s not in the set of legal values ({0})" % info
+            msg = u"%s %s %s %s %s not in the set of legal values ({0})" % info
             args.log.error(msg.format(sorted(
                 [y for (x, y) in data['DomainElement'].keys()
                  if x == ld['feature_alphanumid']])))
+            print msg.format(sorted(
+                [y for (x, y) in data['DomainElement'].keys()
+                 if x == ld['feature_alphanumid']]))
             errors[(ld['feature_alphanumid'], ld['language_id'])] = info
             continue
 
@@ -302,6 +330,20 @@ def main(args):
             common.ValueSetReference(valueset=vs, source=data['Source'][k])
     DBSession.flush()
 
+    #To CLDF
+    cldf = {}
+    for ld in ldps:
+        parameter = data['Feature'][ld['feature_alphanumid']]
+        language = data['ntsLanguage'][ld['language_id']]
+        id_ = '%s-%s' % (parameter.id, language.id)
+        if not id_ in done:
+            continue
+        dt = (lgs[ld['language_id']], "ygr" if ld['language_id'] == 'qgr' else ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"])
+        cldf[dt] = None
+
+    tab = lambda rows: u''.join([u'\t'.join(row) + u"\n" for row in rows])
+    savu(tab([("Language", "iso-639-3", "Feature", "Value")] + cldf.keys()), "nts.cldf")
+        
     args.log.info('%s Errors' % len(errors))
 
     dataset = common.Dataset(
