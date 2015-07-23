@@ -1,3 +1,4 @@
+from pyramid.config import Configurator
 import re
 from functools import partial
 from path import path
@@ -5,7 +6,7 @@ from clld.interfaces import (
     IParameter, IMapMarker, IDomainElement, IValue, ILanguage, IBlog,
 )
 from clld.web.adapters.base import adapter_factory
-from clld.web.app import get_configurator, menu_item
+from clld.web.app import menu_item
 
 # we must make sure custom models are known at database initialization!
 from nts import models
@@ -46,7 +47,8 @@ def main(global_config, **settings):
         (map_marker, IMapMarker),
         (Blog(settings), IBlog),
     ]
-    config = get_configurator('nts', *utilities, **dict(settings=settings))
+    config = Configurator(settings=settings)
+    config.include('clldmpg')
     config.register_menu(
         ('dataset', partial(menu_item, 'dataset', label='Home')),
         ('parameters', partial(menu_item, 'parameters', label='Features')),
@@ -55,7 +57,6 @@ def main(global_config, **settings):
         ('designers', partial(menu_item, 'contributions', label="Contributors")),
     )
 
-    config.include('clldmpg')
     config.include('nts.adapters')
     config.include('nts.datatables')
     config.include('nts.maps')
