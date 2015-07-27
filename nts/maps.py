@@ -1,48 +1,19 @@
-from clld.web.maps import ParameterMap, Map, CombinationMap, Layer
-from clld.web.util.helpers import JS, map_marker_img
+from clld.web.maps import ParameterMap, CombinationMap
 
-from nts.adapters import GeoJsonCDE
-
-def map_params(req):
-    res = {}
-    try:
-        if 'lat' in req.params and 'lng' in req.params:
-            res['center'] = map(float, [req.params['lat'], req.params['lng']])
-        if 'z' in req.params:
-            res['zoom'] = int(req.params['z'])
-    except (ValueError, TypeError):
-        #print req.params
-        pass
-    return res
 
 class FeatureMap(ParameterMap):
     def get_options(self):
-        res = {
+        return {
             'icon_size': 20,
             'max_zoom': 9,
             'worldCopyJump': True,
             'info_query': {'parameter': self.ctx.pk}}
-        res.update(map_params(self.req))
-        return res
-
-
-class LanguageMap(Map):
-    def get_options(self):
-        res = {}
-        res.update(map_params(self.req))
-        return res
 
 
 class CombinedMap(CombinationMap):
-    __geojson__ = GeoJsonCDE
-
     def get_options(self):
-        res = {'icon_size': 20, 'hash': True}
-        res.update(map_params(self.req))
-        return res
+        return {'icon_size': 20, 'hash': True}
 
 
 def includeme(config):
-    config.register_map('languages', LanguageMap)
     config.register_map('parameter', FeatureMap)
-

@@ -3,6 +3,7 @@ import re
 from collections import OrderedDict
 import io
 
+from sqlalchemy import create_engine
 from sqlalchemy.orm import joinedload, joinedload_all
 import json
 
@@ -37,12 +38,13 @@ class GBFeature(object):
         self.domain.update({'?': 'Not known'})
 
     def format_domain(self):
-        return '; '.join('%s: %s' % item for item in self.domain.items() if item[0] != '?'),
+        return '; '.join('%s: %s' % item for item in self.domain.items() if item[0] != '?')
 
 
-def row(f, vs=None, value=None):
+def row(gc, f, vs=None, value=None):
     return [
-        'GB%s' % f.id.rjust(3, '0'),
+        gc,
+        f.id,
         f.name,
         f.format_domain(),
         value or '',
@@ -51,12 +53,8 @@ def row(f, vs=None, value=None):
     ]
 
 
-def export(args, lang, features):
-    lid = lang.id
-    if lid.startswith('NOCODE') and lang.glottocode:
-        lid = lang.glottocode
-
-    values = {k: row(f) for k, f in features.items()}
+def export(args, lang, features, gc, ma):
+    values = {k: row(gc, f) for k, f in features.items()}
     errors = []
     sources = {}
     n = 0
@@ -66,30 +64,46 @@ def export(args, lang, features):
         joinedload(ValueSet.references, ValueSetReference.source),
     ):
         if vs.parameter.id in features:
-            f = features[vs.parameter.id]
             n += 1
+            f = features[vs.parameter.id]
             value = vs.values[0].domainelement.name
             if value == 'N/A':
                 value = '?'
             assert value in f.domain
-            values[f.id] = row(f, vs, value)
+            values[vs.parameter.id] = row(gc, f, vs, value)
             for ref in vs.references:
                 sources[ref.source.name] = ref.source
 
-    print('%s: %s' % (lang.id, n))
+    print lang.id, ':', n, 'of', len(values)
 
-    with UnicodeWriter(args.data_file('grambank', '%s.tsv' % lid), delimiter=b'\t') as writer:
-        writer.writerow(['FeatureID', 'Feature', 'Domain', 'Value', 'Source', 'Comment'])
-        writer.writerows(sorted(values.values(), key=lambda r: r[0]))
+    subdir = args.data_file('grambank', ma)
+    if not subdir.exists():
+        subdir.mkdir()
+    path = lambda suffix: subdir.joinpath(gc + suffix)
 
-    with open(args.data_file('grambank', '%s.csv-metadata.json' % lid), 'wb') as fp:
+    with UnicodeWriter(path('.tsv'), delimiter=b'\t') as writer:
+        writer.writerow(['Language_ID', 'Feature_ID', 'Feature', 'Domain', 'Value', 'Source', 'Comment'])
+        writer.writerows(sorted(values.values(), key=lambda r: r[1]))
+
+    with open(path('.tsv-metadata.json'), 'wb') as fp:
         json.dump({
-            'language': {
-                'name': lang.name,
-                'glottocode': lang.glottocode,
-                'iso-639-3': lang.iso_code,
-                'glottolog-url': 'http://glottolog.org/resource/languoid/id/%s' % lang.glottocode,
-            },
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    "type": "Feature",
+                    "id": 'http://glottolog.org/resource/languoid/id/%s' % gc,
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [lang.longitude, lang.latitude]
+                    },
+                    "properties": {
+                        'name': lang.name,
+                        'glottocode': gc,
+                        'iso-639-3': lang.iso_code,
+                    },
+                },
+            ],
+            'comment': 'Converted from NTS data',
             #'sources': {
             #    name: sources[name].bibtex().id for name in sorted(sources.keys())
             #}
@@ -100,7 +114,7 @@ def export(args, lang, features):
             #default_flow_style=False
         )
 
-    with io.open(args.data_file('grambank', '%s.bib' % lid), 'w', encoding='utf8') as fp:
+    with io.open(path('.bib'), 'w', encoding='utf8') as fp:
         for src in set(sources.values()):
             rec = src.bibtex()
             rec['key'] = src.name
@@ -110,14 +124,30 @@ def export(args, lang, features):
 
 
 def main(args):
-    features = reader(args.data_file('grambank_features.csv'), dicts=True)
+    features = reader(args.data_file('grambank_features.csv'), dicts=True, )
     features = [GBFeature(f) for f in features]
     features = {'%s' % int(f.id[2:]): f for f in features}
-
     errors = []
 
+    db = create_engine('postgresql://robert@/glottolog3')
+
     for l in DBSession.query(Language):
-        errors.extend(export(args, l, features))
+        if l.id == 'qgr':
+            continue
+
+        gc = l.glottocode
+        ma = db.execute("""
+select
+    m.id
+from
+    macroarea as m, languoidmacroarea as lm, language as l
+where
+    m.pk = lm.macroarea_pk and lm.languoid_pk = l.pk and l.id = '%s';""" % gc).fetchone()[0]
+
+        if ma == 'pacific':
+            ma = 'papunesia'
+
+        errors.extend(export(args, l, features, gc, ma))
 
     with UnicodeWriter(args.data_file('na_errors.tsv'), delimiter=b'\t') as writer:
         writer.writerow(['Language', 'Feature', 'Value', 'Source', 'Comment'])

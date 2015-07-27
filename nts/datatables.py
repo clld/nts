@@ -1,14 +1,12 @@
 from sqlalchemy.orm import joinedload, joinedload_all
 
 from clld.db.models import common
-from clld.db.util import get_distinct_values
-
 from clld.web import datatables
 from clld.web.datatables.base import Col, LinkCol, DetailsRowLinkCol, IdCol, LinkToMapCol
-
 from clld.web.datatables.value import Values, ValueNameCol
+from clld_glottologfamily_plugin.datatables import FamilyCol, MacroareaCol
 
-from nts.models import FeatureDomain, Feature, ntsLanguage, Family, ntsValue, Designer
+from nts.models import FeatureDomain, Feature, ntsLanguage, ntsValue, Designer
 from nts.util import comment_button
 
 
@@ -46,17 +44,14 @@ class Features(datatables.Parameters):
 
 class Languages(datatables.Languages):
     def base_query(self, query):
-        return query.join(Family).options(joinedload_all(ntsLanguage.family)).distinct()
+        return query.outerjoin(ntsLanguage.family).options(joinedload(ntsLanguage.family))
 
     def col_defs(self):
         return [
             LinkCol(self, 'Name', model_col=ntsLanguage.name),
             IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id),
-            Col(self, 'Family', model_col=Family.name, get_object=lambda i: i.family),
-            Col(self,
-                'Macro Area',
-                model_col=ntsLanguage.macroarea,
-                choices=get_distinct_values(ntsLanguage.macroarea)),
+            FamilyCol(self, 'Family', language_cls=ntsLanguage),
+            MacroareaCol(self, 'Macro_Area', language_cls=ntsLanguage),
             Col(self, 'Features', model_col=ntsLanguage.representation),
             LinkToMapCol(self, 'm'),
         ]

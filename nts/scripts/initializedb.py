@@ -1,41 +1,43 @@
 # coding: utf8
 from __future__ import unicode_literals
 import sys
-import transaction
 from itertools import groupby
 from collections import Counter
-from io import open
-import re
-import socket
-import getpass
 import csv
 from functools import partial
-
-from pytz import utc
+import io
 from datetime import date, datetime
 
-from clld.scripts.util import (
-    initializedb, Data, gbs_func, bibtex2source, glottocodes_by_isocode,
-    add_language_codes,
-)
+import transaction
+from pytz import utc
+
+from clld.scripts.util import initializedb, Data, gbs_func, bibtex2source
 from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import compute_language_sources
 from clld.lib.bibtex import unescape, Record
 from clld.lib.dsv import reader
-from clld.util import slug
+from clld_glottologfamily_plugin.util import load_families
 
 from nts import models
 
 import issues
 
 
-import codecs
+NOCODE_TO_GLOTTOCODE = {
+    'NOCODE_Apolista': 'apol1242',
+    'NOCODE_Maipure': 'maip1246',
+    'NOCODE_Ngala-Santandrea': 'ngal1296',
+    'NOCODE_Nzadi': 'nzad1234',
+    'NOCODE_Paunaca': 'paun1241',
+    'NOCODE_Sisiqa': 'sisi1250',
+}
+
+
 def savu(txt, fn):
-    f = codecs.open(fn, 'w', encoding = "utf-8")
-    f.write(txt)
-    f.close()
-    return
+    with io.open(fn, 'w', encoding="utf-8") as fp:
+        fp.write(txt)
+
 
 def ktfbib(s):
     rs = [z.split(":::") for z in s.split("|||")]
@@ -58,39 +60,6 @@ def grp2(l):
         groupby(sorted((a, b) for a, b in l), key=lambda t: t[0])]
 
 
-def paths_to_d(pths):
-    if pths == [()] or pths == [[]]:
-        return None
-    return {i: paths_to_d(v) for i, v in grp2([(p[0], p[1:]) for p in pths])}
-
-
-def paths(d):
-    if not d:
-        return set([])
-    assert not isinstance(d, basestring)
-    l = set([(k,) for (k, v) in d.items() if not v])
-    return l.union([(k,) + p for (k, v) in d.items() if v for p in paths(v)])
-
-
-def _lines(dir_, fn):
-    with open(dir_.joinpath(fn), encoding='utf8') as fp:
-        return fp.readlines()
-
-
-def treetxt(txt):
-    reisobrack = re.compile("\[([a-z][a-z][a-z]|NOCODE\_[A-Z][^\s\]]+)\]")
-    r = set()
-    thisclf = None
-    for l in [l.strip() for l in txt if l.strip()]:
-        o = reisobrack.search(l)
-        if o:
-            r.add(thisclf + (o.group(0)[1:-1],))
-        else:
-            thisclf = tuple(l.split(", "))
-
-    return paths_to_d(r)
-
-
 def mergeds(ds):
     """Merge a list of dictionaries by aggregating keys and taking the longest value for
     each key.
@@ -104,8 +73,10 @@ def mergeds(ds):
         reverse=True),
         key=lambda t: t[0])}
 
+
 def longest(ss):
     return max([(len(s), s) for s in ss])[1]
+
 
 def dp_dict(ld):
     assert 'language_id' in ld and ld.get('feature_alphanumid')
@@ -115,23 +86,25 @@ def dp_dict(ld):
 
 
 def main(args):
+    """
+    The case is we have to codings for two different dialects (called hua and yagaria) of
+    the same iso "qgr", both of which we want to keep and keep separately. I had missed
+    that when making NTS, rigging everything so that the iso would be the id, which is not
+    sufficient. Glottocodes in Grambank would have taken care of it except the dialect
+    division for yaga1260 is wrong, having yagaria as overarching and Hua under it
+    (reality has it that Hua and Yagaria are two dialects of the same language, which has
+    no name). So a solution with glottocodes would have to wait until we fix that or need
+    another fix later. So I guess, for now, let's ignore qgr (and its datapoints) and I'll
+    fix on my end later.
+    """
     data = Data(
         created=utc.localize(datetime(2013, 11, 15)),
         updated=utc.localize(datetime(2013, 12, 12)))
     icons = issues.Icons()
 
     dtab = partial(_dtab, args.data_file())
-    lines = partial(_lines, args.data_file())
-
-    dburi = args.glottolog_dburi
-    if not dburi and socket.gethostname() == 'astroman' and getpass.getuser() == 'robert':
-        dburi = 'postgresql://robert@/glottolog3'
-    glottocodes = glottocodes_by_isocode(dburi)
 
     #Languages
-    coords = {d['iso-639-3']: d for d in dtab("dp.tab")}
-    coords['qgr'] = dict(lat=-6.21, lon=145.25)
-
     tabfns = ['%s' % fn.basename() for fn in args.data_file().files('nts_*.tab')]
     args.log.info("Sheets found: %s" % tabfns)
     ldps = []
@@ -141,12 +114,14 @@ def main(args):
 
     for fn in tabfns:
         for ld in dtab(fn):
-            if not ld.has_key(u"feature_alphanumid"):
+            if ld['language_id'] == 'qgr':
+                continue
+            if "feature_alphanumid" not in ld:
                 args.log.info("NO FEATUREID %s %s" % (len(ld), ld))
             if not ld["feature_alphanumid"].startswith("DRS") \
                     and ld["feature_alphanumid"].find(".") == -1:
                 ldps.append(dp_dict(ld))
-                lgs[ld['language_id']] = ld['language_name']
+                lgs[ld['language_id']] = unescape(ld['language_name'])
                 if ld["value"] != "?":
                     nfeatures.update([ld['language_id']])
                     nlgs.update([ld['feature_alphanumid']])
@@ -154,34 +129,18 @@ def main(args):
     ldps = sorted(ldps, key=lambda d: d['feature_alphanumid'])
 
     lgs["ygr"] = "Hua"
-    lgs["qgr"] = "Yagaria"
-    #lgs["dba"] = "Bangime"
-    lgs = dict([(lg, unescape(lgname)) for (lg, lgname) in lgs.iteritems()])
 
-    #Families
-    txt = lines('lff.txt') + lines('lof.txt')
-    lg_to_fam = {p[-1]: p[0].replace("_", " ") for p in paths(treetxt(txt))}
-    lg_to_fam['qgr'] = "Nuclear Trans New Guinea"
-
-    lg_to_ma = {d['language_id']: d['macro_area'] for d in dtab("macroareas.tab")}
-    lg_to_ma['qgr'] = "Papua"
-
-    for fam, icon in icons.iconizeall(grp2([(lg_to_fam[lg], lg) for lg in lgs.keys()])):
-        data.add(models.Family, fam, id=slug(fam), name=fam, jsondata={"icon": icon})
-    DBSession.flush()
-
-    for lgid in lgs:
-        lang = data.add(
+    for lgid, lgname in lgs.items():
+        data.add(
             models.ntsLanguage, lgid,
             id=lgid,
-            name=unescape(lgs[lgid]),
-            family=data["Family"][lg_to_fam[lgid]],
-            representation=nfeatures.get(lgid, 0),
-            latitude=float(coords[lgid]['lat']),
-            longitude=float(coords[lgid]['lon']),
-            macroarea=lg_to_ma[lgid])
-        add_language_codes(data, lang, isocode=lgid, glottocodes=glottocodes)
+            name=lgname,
+            representation=nfeatures.get(lgid, 0))
     DBSession.flush()
+    load_families(
+        data,
+        [(NOCODE_TO_GLOTTOCODE.get(l.id, l.id), l) for l in data['ntsLanguage'].values()],
+        isolates_icon='tcccccc')
 
     #Domains
     for domain in set(ld['feature_domain'] for ld in ldps):
@@ -338,7 +297,7 @@ def main(args):
         id_ = '%s-%s' % (parameter.id, language.id)
         if not id_ in done:
             continue
-        dt = (lgs[ld['language_id']], "ygr" if ld['language_id'] == 'qgr' else ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"])
+        dt = (lgs[ld['language_id']], ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"])
         cldf[dt] = None
 
     tab = lambda rows: u''.join([u'\t'.join(row) + u"\n" for row in rows])

@@ -1,23 +1,15 @@
-import codecs
 from itertools import groupby
 
 from sqlalchemy.orm import joinedload_all, joinedload
-from path import path
-from bs4 import BeautifulSoup as soup
-from pyramid.httpexceptions import HTTPFound
 
 from clld import RESOURCES
-from clld.interfaces import IRepresentation
-from clld.web.adapters import get_adapter
 from clld.db.meta import DBSession
-from clld.db.models.common import DomainElement, Contribution, ValueSet, Value
-from clld.web.util.helpers import button, icon, JS_CLLD, get_referents, JS
-from clld.web.util.multiselect import MultiSelect, CombinationMultiSelect
+from clld.db.models.common import ValueSet, Value
+from clld.web.util.helpers import button, icon
+from clld.web.util.multiselect import CombinationMultiSelect
 from clld.web.util.htmllib import HTML
-from clld.web.icon import ICON_MAP
 
-import nts
-from nts.models import Feature, ntsLanguage
+from nts.models import ntsLanguage
 from nts.maps import CombinedMap
 
 
@@ -53,10 +45,6 @@ def icons(req, param):
             class_="table table-condensed"
         ),
         button('Close', **{'data-dismiss': 'clickover'}))
-
-
-#def source_detail_html(context=None, request=None, **kw):
-#    return {'referents': get_referents(context)}
 
 
 def _valuesets(parameter):

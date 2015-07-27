@@ -6,7 +6,7 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
 )
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 
 from clld import interfaces
 from clld.db.meta import Base, CustomModelMixin
@@ -15,29 +15,15 @@ from clld.db.models.common import (
     Language,
     Parameter,
     Contribution,
-    IdNameDescriptionMixin,
     Value,
 )
-from nts import interfaces as nts_interfaces
-
-
-#-----------------------------------------------------------------------------
-# specialized common mapper classes
-#-----------------------------------------------------------------------------
-
-
-@implementer(nts_interfaces.IFamily)
-class Family(Base, IdNameDescriptionMixin, Versioned):
-    pass
+from clld_glottologfamily_plugin.models import HasFamilyMixin
 
 
 @implementer(interfaces.ILanguage)
-class ntsLanguage(CustomModelMixin, Language):
+class ntsLanguage(CustomModelMixin, Language, HasFamilyMixin):
     pk = Column(Integer, ForeignKey('language.pk'), primary_key=True)
-    family_pk = Column(Integer, ForeignKey('family.pk'))
-    family = relationship(Family, backref=backref("languages", order_by="Language.name"))
     representation = Column(Integer)
-    macroarea = Column(Unicode)
 
 
 @implementer(interfaces.IValue)
