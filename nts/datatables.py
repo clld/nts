@@ -4,7 +4,7 @@ from clld.db.models import common
 from clld.web import datatables
 from clld.web.datatables.base import Col, LinkCol, DetailsRowLinkCol, IdCol, LinkToMapCol
 from clld.web.datatables.value import Values, ValueNameCol
-from clld_glottologfamily_plugin.datatables import FamilyCol, MacroareaCol
+from clld_glottologfamily_plugin.datatables import FamilyLinkCol, MacroareaCol
 
 from nts.models import FeatureDomain, Feature, ntsLanguage, ntsValue, Designer
 from nts.util import comment_button
@@ -50,7 +50,7 @@ class Languages(datatables.Languages):
         return [
             LinkCol(self, 'Name', model_col=ntsLanguage.name),
             IdCol(self, 'ISO-639-3', sClass='left', model_col=ntsLanguage.id),
-            FamilyCol(self, 'Family', language_cls=ntsLanguage),
+            FamilyLinkCol(self, 'Family', language_cls=ntsLanguage),
             MacroareaCol(self, 'Macro_Area', language_cls=ntsLanguage),
             Col(self, 'Features', model_col=ntsLanguage.representation),
             LinkToMapCol(self, 'm'),

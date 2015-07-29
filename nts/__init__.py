@@ -45,6 +45,7 @@ def main(global_config, **settings):
 
     config = Configurator(settings=settings)
     config.include('clldmpg')
+    config.include('clld_glottologfamily_plugin')
     config.registry.registerUtility(NtsMapMarker(), IMapMarker)
     config.registry.registerUtility(Blog(settings), IBlog)
     config.register_menu(
