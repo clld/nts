@@ -16,8 +16,10 @@ from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import compute_language_sources
 from clld.lib.bibtex import unescape, Record
-from clld.lib.dsv import reader
-from clld_glottologfamily_plugin.util import load_families
+from clldutils.dsv import reader
+from clld_glottologfamily_plugin.util import load_families, Family
+from clldclient.glottolog import Glottolog
+from clld.lib import bibtex
 
 from nts import models
 
@@ -31,11 +33,12 @@ NOCODE_TO_GLOTTOCODE = {
     'NOCODE_Nzadi': 'nzad1234',
     'NOCODE_Paunaca': 'paun1241',
     'NOCODE_Sisiqa': 'sisi1250',
+    'pnk': 'paun1241'
 }
 
 
-def savu(txt, fn):
-    with io.open(fn, 'w', encoding="utf-8") as fp:
+def savu(txt, fn, encoding = "utf-8-sig"):
+    with io.open(fn, 'w', encoding=encoding) as fp:
         fp.write(txt)
 
 
@@ -47,7 +50,7 @@ def ktfbib(s):
 
 def _dtab(dir_, fn):
     lpd = []
-    for d in reader(dir_.joinpath(fn), dicts=True, quoting=csv.QUOTE_NONE):
+    for d in reader(dir_.joinpath(fn), dicts=True, delimiter='\t', quoting=csv.QUOTE_NONE):
         lpd.append({
             k.replace('\ufeff', ''): (v or '').strip()
             for k, v in d.items() + [("fromfile", fn)]})
@@ -85,6 +88,10 @@ def dp_dict(ld):
         for (k, v) in ld.iteritems()}
 
 
+def bibliographical_details(bibsources):
+    ktfs = [ktfbib(bibsource) for bibsource in bibsources if bibsource.strip()]
+    return u"; ".join([Record(t, k, **{k: bibtex.unescape(v) for (k, v) in f.iteritems()}).text() for (k, (t, f)) in ktfs])
+
 def main(args):
     """
     The case is we have to codings for two different dialects (called hua and yagaria) of
@@ -105,7 +112,7 @@ def main(args):
     dtab = partial(_dtab, args.data_file())
 
     #Languages
-    tabfns = ['%s' % fn.basename() for fn in args.data_file().files('nts_*.tab')]
+    tabfns = ['%s' % fn.name for fn in args.data_file().glob('nts_*.tab')]
     args.log.info("Sheets found: %s" % tabfns)
     ldps = []
     lgs = {}
@@ -137,11 +144,17 @@ def main(args):
             name=lgname,
             representation=nfeatures.get(lgid, 0))
     DBSession.flush()
-    load_families(
-        data,
-        [(NOCODE_TO_GLOTTOCODE.get(l.id, l.id), l) for l in data['ntsLanguage'].values()],
-        isolates_icon='tcccccc')
 
+    load_families(data, [(NOCODE_TO_GLOTTOCODE.get(l.id, l.id), l) for l in data['ntsLanguage'].values()], isolates_icon='tcccccc')
+    #glottolog = Glottolog()
+    #for lg in data['ntsLanguage'].values():
+    #    print lg.id, NOCODE_TO_GLOTTOCODE.get(lg.id, lg.id)
+    #    gl_language = glottolog.languoid(NOCODE_TO_GLOTTOCODE.get(lg.id, lg.id))
+    #    if not gl_language.family:
+    #        family = data.add(Family, gl_language.id, id = gl_language.id, name = gl_language.name, description=common.Identifier(name=gl_language.id, type=common.IdentifierType.glottolog.value).url(), jsondata={"icon": 'tcccccc'})
+    #        lg.family = family
+
+    
     #Domains
     for domain in set(ld['feature_domain'] for ld in ldps):
         data.add(models.FeatureDomain, domain, name=domain)
@@ -297,12 +310,28 @@ def main(args):
         id_ = '%s-%s' % (parameter.id, language.id)
         if not id_ in done:
             continue
-        dt = (lgs[ld['language_id']], ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"])
+        dt = (lgs[ld['language_id']], ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"]) #, ld["comment"], ld["source"], bibliographical_details(ld.get('bibsources', "").split(",,,"))
         cldf[dt] = None
-
-    tab = lambda rows: u''.join([u'\t'.join(row) + u"\n" for row in rows])
-    savu(tab([("Language", "iso-639-3", "Feature", "Value")] + cldf.keys()), "nts.cldf")
         
+        
+    tab = lambda rows: u''.join([u'\t'.join(row) + u"\n" for row in rows])
+    savu(tab([("Language", "iso-639-3", "Feature", "Value")] + cldf.keys()), "nts.cldf", encoding = "utf-8") #utf-16 "Comment", "Source", "Bibliographical Details"
+
+
+
+    #cldf = {}
+    #for ld in ldps:
+    #    parameter = data['Feature'][ld['feature_alphanumid']]
+    #    language = data['ntsLanguage'][ld['language_id']]
+    #    id_ = '%s-%s' % (parameter.id, language.id)
+    #    if not id_ in done:
+    #        continue
+    #    dt = (lgs[ld['language_id']], ld['language_id'], ld['feature_alphanumid'] + ". " + ld['feature_name'], ld["value"], ld["comment"], ld["source"], bibliographical_details(ld.get('bibsources', "").split(",,,")), ld.get("feature_information", ""), ld.get('feature_possible_values', ""), ld["designer"], ld.get("abbreviation", ""), ld["feature_domain"], ld.get('francais', ""), ld.get("dependencies", ""), ld.get("draft of clarifying comments to outsiders (hedvig + dunn + harald + suzanne)", ""))
+    #    cldf[dt] = None
+    
+    #savu(tab([("Language", "iso-639-3", "Feature", "Value", "Comment", "Source", "Bibliographical Details", "Feature Information", "Feature Possible Values", "Feature Designer", "Feature Abbreviation", "Feature Domain", "Feature (French)", "Feature Dependencies", "Feature Clarifying Comments")] + cldf.keys()), "nts-with-metadata.tsv", encoding="utf-16")
+
+    
     args.log.info('%s Errors' % len(errors))
 
     dataset = common.Dataset(
@@ -337,7 +366,6 @@ def main(args):
         common.Editor(dataset=dataset, contributor=contributor, ord=i)
 
     DBSession.add(dataset)
-
 
 def prime_cache(args):
     """If data needs to be denormalized for lookup, do that here.
