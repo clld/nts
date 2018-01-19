@@ -2,7 +2,7 @@ import re
 from functools import partial
 
 from pyramid.config import Configurator
-from path import path
+from clldutils.path import Path
 
 from clld.interfaces import IParameter, IMapMarker, IDomainElement, IValue, IBlog
 from clld.web.adapters.base import adapter_factory
@@ -11,7 +11,6 @@ from clld_glottologfamily_plugin.util import LanguageByFamilyMapMarker
 
 # we must make sure custom models are known at database initialization!
 from nts import models
-from nts.blog import Blog
 
 
 class NtsMapMarker(LanguageByFamilyMapMarker):
@@ -35,10 +34,8 @@ def main(global_config, **settings):
     convert = lambda spec: ''.join(c if i == 0 else c + c for i, c in enumerate(spec))
     filename_pattern = re.compile('(?P<spec>(c|d|s|f|t)[0-9a-f]{3})\.png')
     icons = {}
-    for name in sorted(
-        path(__file__).dirname().joinpath('static', 'icons').files()
-    ):
-        m = filename_pattern.match(name.splitall()[-1])
+    for fname in sorted(Path(__file__).parent.joinpath('static', 'icons').iterdir()):
+        m = filename_pattern.match(fname.name)
         if m:
             icons[m.group('spec')] = convert(m.group('spec'))
     settings['icons'] = icons
@@ -47,7 +44,6 @@ def main(global_config, **settings):
     config.include('clldmpg')
     config.include('clld_glottologfamily_plugin')
     config.registry.registerUtility(NtsMapMarker(), IMapMarker)
-    config.registry.registerUtility(Blog(settings), IBlog)
     config.register_menu(
         ('dataset', partial(menu_item, 'dataset', label='Home')),
         ('parameters', partial(menu_item, 'parameters', label='Features')),

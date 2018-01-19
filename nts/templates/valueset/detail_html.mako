@@ -16,7 +16,6 @@
         ${h.map_marker_img(request, value)}
         ${value.__unicode__()}
     </h4>
-    ${u.comment_button(request, ctx)}
 % endfor
 <%def name="sidebar()">
     <div class="well well-small">

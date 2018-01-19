@@ -7,7 +7,6 @@ from clld.web.datatables.value import Values, ValueNameCol
 from clld_glottologfamily_plugin.datatables import FamilyLinkCol, MacroareaCol
 
 from nts.models import FeatureDomain, Feature, ntsLanguage, ntsValue, Designer
-from nts.util import comment_button
 
 
 class FeatureIdCol(IdCol):
@@ -67,13 +66,6 @@ class Designers(datatables.Contributions):
         ]
 
 
-class CommentCol(Col):
-    __kw__ = dict(bSortable=False, bSearchable=False)
-
-    def format(self, item):
-        return comment_button(self.dt.req, item.valueset)
-
-
 class Datapoints(Values):
     def base_query(self, query):
         query = Values.base_query(self, query)
@@ -117,7 +109,6 @@ class Datapoints(Values):
                 model_col=common.ValueSet.source,
                 get_object=lambda i: i.valueset),
             Col(self, 'Comment', model_col=ntsValue.comment),
-            CommentCol(self, '_'),
         ]
         return cols
 
