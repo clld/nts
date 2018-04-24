@@ -1,67 +1,66 @@
+import sqlalchemy as sa
+from alembic import op
+
 """update unique null
 
 Revision ID: 7505b4cb57db
-Revises: 51063fb35c12
-Create Date: 2018-01-13 17:08:33.657075
+Revises: 
+Create Date: 2018-03-12 11:27:59.352695
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '7505b4cb57db'
-down_revision = '51063fb35c12'
-branch_labels = None
-depends_on = None
-
-from alembic import op
-import sqlalchemy as sa
+down_revision = None
 
 
 UNIQUE_NULL = [
     ('contributioncontributor',
-        ['contribution_pk', 'contributor_pk'], []),
+     ['contribution_pk', 'contributor_pk'], []),
     ('contributionreference',
-        ['contribution_pk', 'source_pk', 'description'],
-        ['description']),
+     ['contribution_pk', 'source_pk', 'description'],
+     ['description']),
     ('domainelement',
-        ['parameter_pk', 'name'],
-        ['name']),
+     ['parameter_pk', 'name'],
+     ['name']),
     ('domainelement',
-        ['parameter_pk', 'number'],
-        ['number']),
+     ['parameter_pk', 'number'],
+     ['number']),
     ('editor',
-        ['dataset_pk', 'contributor_pk'], []),
+     ['dataset_pk', 'contributor_pk'], []),
     ('languageidentifier',
-        ['language_pk', 'identifier_pk'], []),
+     ['language_pk', 'identifier_pk'], []),
     ('languagesource',
-        ['language_pk', 'source_pk'], []),
+     ['language_pk', 'source_pk'], []),
     ('sentencereference',
-        ['sentence_pk', 'source_pk', 'description'],
-        ['description']),
+     ['sentence_pk', 'source_pk', 'description'],
+     ['description']),
     ('unit',
-        ['language_pk', 'id'],
-        ['id']),
+     ['language_pk', 'id'],
+     ['id']),
     ('unitdomainelement',
-        ['unitparameter_pk', 'name'],
-        ['name']),
+     ['unitparameter_pk', 'name'],
+     ['name']),
     ('unitdomainelement',
-        ['unitparameter_pk', 'ord'],
-        ['ord']),
+     ['unitparameter_pk', 'ord'],
+     ['ord']),
     # NOTE: <unit, unitparameter, contribution> can have multiple values and also multiple unitdomainelements
     ('unitvalue',
-        ['unit_pk', 'unitparameter_pk', 'contribution_pk', 'name', 'unitdomainelement_pk'],
-        ['contribution_pk', 'name', 'unitdomainelement_pk']),
+     ['unit_pk', 'unitparameter_pk', 'contribution_pk', 'name',
+      'unitdomainelement_pk'],
+     ['contribution_pk', 'name', 'unitdomainelement_pk']),
     # NOTE: <language, parameter, contribution> can have multiple values and also multiple domainelements
     ('value',
-        ['valueset_pk', 'name', 'domainelement_pk'],
-        ['name', 'domainelement_pk']),
+     ['valueset_pk', 'name', 'domainelement_pk'],
+     ['name', 'domainelement_pk']),
     ('valuesentence',
-        ['value_pk', 'sentence_pk'], []),
+     ['value_pk', 'sentence_pk'], []),
     ('valueset',
-        ['language_pk', 'parameter_pk', 'contribution_pk'],
-        ['contribution_pk']),
+     ['language_pk', 'parameter_pk', 'contribution_pk'],
+     ['contribution_pk']),
     ('valuesetreference',
-        ['valueset_pk', 'source_pk', 'description'],
-        ['description']),
+     ['valueset_pk', 'source_pk', 'description'],
+     ['description']),
 ]
 
 
@@ -69,21 +68,22 @@ class DryRunException(Exception):
     """Raised at the end of a dry run so the database transaction is not comitted."""
 
 
-def upgrade(dry=False, verbose=True):
+def upgrade(dry=True, verbose=True):
     conn = op.get_bind()
 
     assert conn.dialect.name == 'postgresql'
 
-    def delete_null_duplicates(tablename, columns, notnull, returning=sa.text('*')):
+    def delete_null_duplicates(tablename, columns, notnull,
+                               returning=sa.text('*')):
         assert columns
         table = sa.table(tablename, *map(sa.column, ['pk'] + columns))
         any_null = sa.or_(table.c[n] == sa.null() for n in notnull)
         yield table.delete(bind=conn).where(any_null).returning(returning)
         other = table.alias()
-        yield table.delete(bind=conn).where(~any_null).returning(returning)\
+        yield table.delete(bind=conn).where(~any_null).returning(returning) \
             .where(sa.exists()
-                .where(sa.and_(table.c[c] == other.c[c] for c in columns))
-                .where(table.c.pk > other.c.pk))
+                   .where(sa.and_(table.c[c] == other.c[c] for c in columns))
+                   .where(table.c.pk > other.c.pk))
 
     def print_rows(rows, verbose=verbose):
         if not verbose:
@@ -95,46 +95,52 @@ def upgrade(dry=False, verbose=True):
         def get_col_spec(self):
             return 'regclass'
 
-    pga = sa.table('pg_attribute', *map(sa.column, ['attrelid', 'attname', 'attnum', 'attnotnull']))
+    pga = sa.table('pg_attribute', *map(sa.column,
+                                        ['attrelid', 'attname', 'attnum',
+                                         'attnotnull']))
 
-    select_nullable = sa.select([pga.c.attname], bind=conn)\
-        .where(pga.c.attrelid == sa.cast(sa.bindparam('table'), regclass))\
-        .where(pga.c.attname == sa.func.any(sa.bindparam('notnull')))\
-        .where(~pga.c.attnotnull)\
+    select_nullable = sa.select([pga.c.attname], bind=conn) \
+        .where(pga.c.attrelid == sa.cast(sa.bindparam('table'), regclass)) \
+        .where(pga.c.attname == sa.func.any(sa.bindparam('notnull'))) \
+        .where(~pga.c.attnotnull) \
         .order_by(pga.c.attnum)
 
     pgco = sa.table('pg_constraint', *map(sa.column,
-                    ['oid', 'conname', 'contype', 'conrelid', 'conkey']))
+                                          ['oid', 'conname', 'contype',
+                                           'conrelid', 'conkey']))
 
     sq = sa.select([
-            pgco.c.conname.label('name'),
-            sa.func.pg_get_constraintdef(pgco.c.oid).label('definition'),
-            sa.func.array(
-                sa.select([sa.cast(pga.c.attname, sa.Text)])
+        pgco.c.conname.label('name'),
+        sa.func.pg_get_constraintdef(pgco.c.oid).label('definition'),
+        sa.func.array(
+            sa.select([sa.cast(pga.c.attname, sa.Text)])
                 .where(pga.c.attrelid == pgco.c.conrelid)
                 .where(pga.c.attnum == sa.func.any(pgco.c.conkey))
                 .as_scalar()).label('names'),
-        ]).where(pgco.c.contype == 'u')\
-        .where(pgco.c.conrelid == sa.cast(sa.bindparam('table'), regclass))\
+    ]).where(pgco.c.contype == 'u') \
+        .where(pgco.c.conrelid == sa.cast(sa.bindparam('table'), regclass)) \
         .alias()
 
-    select_const = sa.select([sq.c.name, sq.c.definition], bind=conn)\
-        .where(sq.c.names.op('@>')(sa.bindparam('cols')))\
+    select_const = sa.select([sq.c.name, sq.c.definition], bind=conn) \
+        .where(sq.c.names.op('@>')(sa.bindparam('cols'))) \
         .where(sq.c.names.op('<@')(sa.bindparam('cols')))
 
     for table, unique, null in UNIQUE_NULL:
         print(table)
         notnull = [u for u in unique if u not in null]
-        delete_null, delete_duplicates = delete_null_duplicates(table, unique, notnull)
+        delete_null, delete_duplicates = delete_null_duplicates(table, unique,
+                                                                notnull)
 
         nulls = delete_null.execute().fetchall()
         if nulls:
-            print('%s delete %d row(s) violating NOT NULL(%s)' % (table, len(nulls), ', '.join(notnull)))
+            print('%s delete %d row(s) violating NOT NULL(%s)' % (
+            table, len(nulls), ', '.join(notnull)))
             print_rows(nulls)
 
         duplicates = delete_duplicates.execute().fetchall()
         if duplicates:
-            print('%s delete %d row(s) violating UNIQUE(%s)' % (table, len(duplicates), ', '.join(unique)))
+            print('%s delete %d row(s) violating UNIQUE(%s)' % (
+            table, len(duplicates), ', '.join(unique)))
             print_rows(duplicates)
 
         for col, in select_nullable.execute(table=table, notnull=notnull):
