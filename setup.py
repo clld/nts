@@ -29,10 +29,10 @@ setup(
     extras_require={
         'dev': [
             'flake8',
-            'psycopg2',
             'tox',
         ],
         'test': [
+            'psycopg2',
             'mock',
             'pytest>=3.1',
             'pytest-clld',
