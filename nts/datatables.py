@@ -1,4 +1,4 @@
-from sqlalchemy.orm import joinedload, joinedload_all
+from sqlalchemy.orm import joinedload
 
 from clld.db.models import common
 from clld.web import datatables
@@ -21,8 +21,8 @@ class FeatureIdCol(IdCol):
 class Features(datatables.Parameters):
     def base_query(self, query):
         return query\
-            .join(Designer).options(joinedload_all(Feature.designer))\
-            .join(FeatureDomain).options(joinedload_all(Feature.featuredomain))
+            .join(Designer).options(joinedload(Feature.designer))\
+            .join(FeatureDomain).options(joinedload(Feature.featuredomain))
 
     def col_defs(self):
         return [
@@ -71,7 +71,7 @@ class Datapoints(Values):
         query = Values.base_query(self, query)
         if self.language:
             query = query.options(
-                joinedload_all(common.Value.valueset, common.ValueSet.parameter),
+                joinedload(common.Value.valueset).joinedload(common.ValueSet.parameter),
                 joinedload(common.Value.domainelement),
             )
         return query

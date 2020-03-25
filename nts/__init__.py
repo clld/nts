@@ -4,7 +4,7 @@ from functools import partial
 from pyramid.config import Configurator
 from clldutils.path import Path
 
-from clld.interfaces import IParameter, IMapMarker, IDomainElement, IValue, IBlog
+from clld.interfaces import IParameter, IMapMarker, IDomainElement, IValue
 from clld.web.adapters.base import adapter_factory
 from clld.web.app import menu_item
 from clld_glottologfamily_plugin.util import LanguageByFamilyMapMarker

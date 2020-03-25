@@ -1,5 +1,3 @@
-# coding: utf8
-from __future__ import unicode_literals
 import sys
 from itertools import groupby
 from collections import Counter
@@ -16,14 +14,13 @@ from clld.db.meta import DBSession
 from clld.db.models import common
 from clld.db.util import compute_language_sources
 from clld.lib.bibtex import unescape, Record
-from clldutils.dsv import reader
+from csvw.dsv import reader
 from clld_glottologfamily_plugin.util import load_families, Family
-from clldclient.glottolog import Glottolog
 from clld.lib import bibtex
 
 from nts import models
 
-import issues
+from . import issues
 
 
 NOCODE_TO_GLOTTOCODE = {
@@ -190,9 +187,9 @@ def main(args):
     fvdt = [(fid, grp2(vdescs)) for (fid, vdescs) in fvdesc]
     fvmis = [(fid, vdescs) for (fid, vdescs) in fvdt if len(vdescs) > 1]
     for (fid, vdescs) in fvmis:
-        print fid, "DIFF VDESC"
+        print(fid, "DIFF VDESC")
         for (vd, fromf) in vdescs:
-            print vd, set(fromf)
+            print(vd, set(fromf))
 
     for _, dfsids in groupby(
             sorted((f.get('feature_name', fid), fid) for fid, f in fs),
@@ -249,7 +246,6 @@ def main(args):
         args.log.warn(
             "Dup value %s %s %s" %
             (f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile']) for ix in ixs]))
-        print "Dup value %s %s %s" % (f, lg, [(ldps[ix]['value'], ldps[ix]['fromfile'], ldps[ix].get('provenance')) for ix in ixs])
     errors = {}
     done = set()
     for ld in ldps:
@@ -273,9 +269,6 @@ def main(args):
             args.log.error(msg.format(sorted(
                 [y for (x, y) in data['DomainElement'].keys()
                  if x == ld['feature_alphanumid']])))
-            print msg.format(sorted(
-                [y for (x, y) in data['DomainElement'].keys()
-                 if x == ld['feature_alphanumid']]))
             errors[(ld['feature_alphanumid'], ld['language_id'])] = info
             continue
 

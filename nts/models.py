@@ -10,7 +10,6 @@ from sqlalchemy.orm import relationship
 
 from clld import interfaces
 from clld.db.meta import Base, CustomModelMixin
-from clld.db.versioned import Versioned
 from clld.db.models.common import (
     Language,
     Parameter,
@@ -34,12 +33,12 @@ class ntsValue(CustomModelMixin, Value):
     contributed_datapoint = Column(Unicode)
 
 
-class FeatureDomain(Base, Versioned):
+class FeatureDomain(Base):
     name = Column(Unicode, unique=True)
 
 
 @implementer(interfaces.IContribution)
-class Designer(CustomModelMixin, Contribution, Versioned):
+class Designer(CustomModelMixin, Contribution):
     """Contributions in NTS are designers. These comprise a set of
     features with corresponding values and a descriptive text.
     """
@@ -51,7 +50,7 @@ class Designer(CustomModelMixin, Contribution, Versioned):
 
 
 @implementer(interfaces.IParameter)
-class Feature(CustomModelMixin, Parameter, Versioned):
+class Feature(CustomModelMixin, Parameter):
     """Parameters in NTS are called feature. They are always related to one Designer.
     """
     pk = Column(Integer, ForeignKey('parameter.pk'), primary_key=True)

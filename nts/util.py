@@ -1,4 +1,4 @@
-from sqlalchemy.orm import joinedload_all, joinedload
+from sqlalchemy.orm import joinedload
 
 from clld import RESOURCES
 from clld.db.meta import DBSession
@@ -21,7 +21,7 @@ def _valuesets(parameter):
         .filter(ValueSet.parameter_pk == parameter.pk)\
         .options(
             joinedload(ValueSet.language),
-            joinedload_all(ValueSet.values, Value.domainelement))
+            joinedload(ValueSet.values).joinedload(Value.domainelement))
 
 
 def parameter_detail_html(context=None, request=None, **kw):
@@ -30,7 +30,7 @@ def parameter_detail_html(context=None, request=None, **kw):
 
 def parameter_detail_tab(context=None, request=None, **kw):
     query = _valuesets(context).options(
-        joinedload_all(ValueSet.language, ntsLanguage.family))
+        joinedload(ValueSet.language).joinedload(ntsLanguage.family))
     return dict(datapoints=query)
 
 

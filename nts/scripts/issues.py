@@ -1,7 +1,8 @@
 import re
-from path import path
-import nts
+import pathlib
 from itertools import cycle
+
+import nts
 
 
 class Icons(object):
@@ -17,7 +18,7 @@ class Icons(object):
     def __init__(self):
         self._icons = []
         for name in sorted(
-            path(nts.__file__).dirname().joinpath('static', 'icons').files()
+            pathlib.Path(nts.__file__).parent.joinpath('static', 'icons').files()
         ):
             m = self.filename_pattern.match(name.splitall()[-1])
             if m:
@@ -28,5 +29,5 @@ class Icons(object):
 
     def iconize(self, xs, t="c"):
         icons_t = sorted([icon for icon in self._icons if icon.startswith(t)])
-        icons_selection = [icons_t[i] for i in xrange(0, len(icons_t), len(icons_t)/len(xs))] if len(xs) < len(icons_t) else cycle(icons_t)
+        icons_selection = [icons_t[i] for i in range(0, len(icons_t), len(icons_t)/len(xs))] if len(xs) < len(icons_t) else cycle(icons_t)
         return dict(zip(xs, icons_selection))
