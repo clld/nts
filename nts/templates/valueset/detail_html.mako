@@ -14,7 +14,7 @@
 % for i, value in enumerate(ctx.values):
     <h4>
         ${h.map_marker_img(request, value)}
-        ${value.__unicode__()}
+        ${value}
     </h4>
 % endfor
 <%def name="sidebar()">
